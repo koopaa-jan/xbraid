@@ -256,7 +256,11 @@ typedef struct
  **/
 typedef struct _braid_Core_struct
 {
+   //newDyn
+   MPI_Session            session;
+   MPI_Group              world_group;
    MPI_Comm               comm_world;
+   braid_Real             interval_len;
    MPI_Comm               comm;             /**< communicator for the time dimension */
    braid_Int              myid_world;       /**< my rank in the world communicator */
    braid_Int              myid;             /**< my rank in the time communicator */

@@ -480,6 +480,7 @@ _braid_Drive(braid_Core  core,
       /* RDF: Can this be done more efficiently?  It looks like this is needed
        * only to get the 'refine' factors, then the solve is recomputed in
        * either FRefine() or FAccess(). */
+
       if (nlevels == 1)
       {
          braid_Int  nrel0;
@@ -504,6 +505,8 @@ _braid_Drive(braid_Core  core,
 
       if (cycle.down)
       {
+         //newDyn
+         printf("--------------------Down Cycle ---------------------\n");
          /* Down cycle */
 
          /* CF-relaxation */
@@ -525,10 +528,14 @@ _braid_Drive(braid_Core  core,
       }
       else
       {
+         //newDyn
+         printf("-------------------Up Cycle------------------------\n");
          /* Up cycle */
 
          if (level > 0)
          {
+            //newDyn
+            printf("up cycle and level > 0\n");
             /* Set core->level to dummy value signifying coarsest grid solve. Must reset core->level after FInterp below */
             _braid_CoreElt(core, level) = -11;
 
@@ -557,6 +564,9 @@ _braid_Drive(braid_Core  core,
          }
          else
          {
+            //newDyn
+            printf("up cycle and level == 0\n");
+
             _braid_SyncStatusInit(iter, level, _braid_CoreElt(core, nrefine),
                                   _braid_CoreElt(core, gupper), done,
                                   braid_ASCaller_Drive_TopCycle, sstatus);
@@ -647,9 +657,13 @@ _braid_Drive(braid_Core  core,
                iter++;
                _braid_CoreElt(core, niter) = iter;
             }
+            printf("---------------------end of one interation-----------------------------\n");
          }
       }
    }
+
+   //newDyn
+      printf("after while loop\n");
 
    /* Set flag that Braid is done */
    _braid_CoreElt(core, done) = 1;
