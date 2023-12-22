@@ -34,6 +34,191 @@ FILE    *_braid_printfile  = NULL;
 #define DEBUG 0
 #endif
 
+/*--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------*/
+
+braid_Int
+braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector transfer_vector)
+{
+   printf("test\n");
+   MPI_Comm             comm_world      = _braid_CoreElt(core, comm_world);
+   braid_Int            myid            = _braid_CoreElt(core, myid_world);
+   braid_Real           tstart          = _braid_CoreElt(core, tstart);
+   braid_Real           tstop           = _braid_CoreElt(core, tstop);
+   braid_Int            ntime           = _braid_CoreElt(core, ntime);
+   braid_Int            warm_restart    = _braid_CoreElt(core, warm_restart);
+   braid_Int            print_level     = _braid_CoreElt(core, print_level);
+   braid_App            app             = _braid_CoreElt(core, app);
+   braid_Int            obj_only        = _braid_CoreElt(core, obj_only);
+   braid_Int            adjoint         = _braid_CoreElt(core, adjoint);
+   braid_Int            delta           = _braid_CoreElt(core, delta_correct);
+   braid_SyncStatus     sstatus         = (braid_SyncStatus)core;
+
+   braid_Int      ilower, iupper, i;
+   braid_Real    *ta;
+   _braid_Grid   *grid;
+   braid_Real     localtime, globaltime;
+   braid_Real     timer_drive_init;
+
+   printf("test1\n");
+
+   timer_drive_init = _braid_MPI_Wtime(core, 2);
+   /* Check for non-supported adjoint features */
+   if (adjoint)
+   {
+      _braid_AdjointFeatureCheck(core);
+   }
+   /* Check for non-supported Delta correction features */
+   if (delta)
+   {
+      _braid_DeltaFeatureCheck(core);
+   }
+   printf("test2\n");
+   if (myid == 0 )
+   {
+      if (!warm_restart && print_level > 0)
+      {
+         _braid_printf("\n  Braid: Begin simulation, %d time steps\n",
+                       _braid_CoreElt(core, gupper));
+      }
+      if ( adjoint && print_level > 0 )
+      {
+         if (_braid_CoreElt(core, max_levels) > 1)
+         {
+            _braid_printf("\n");
+            _braid_printf("  Braid:      || r ||      || r_adj ||     Objective\n");
+            _braid_printf("  Braid:---------------------------------------------\n");
+         }
+         else
+         {
+            _braid_printf("  Braid: Serial time-stepping. \n\n");
+         }
+      }
+   }
+
+   printf("test3\n");
+
+   /* Start timer */
+   localtime = _braid_MPI_Wtime(core, 1);
+
+   /* Allocate and initialize grids */
+   if ( !warm_restart )
+   {
+      /* Create fine grid */
+      _braid_GetDistribution(core, &ilower, &iupper);
+      // adjust ptrs
+      ilower += ptr_offset;
+      iupper += ptr_offset;
+
+      _braid_GridInit(core, 0, ilower, iupper, &grid);
+      printf("after GridInit ilower: %d iupper: %d\n", ilower, iupper);
+
+      /* Set t values */
+      ta = _braid_GridElt(grid, ta);
+      if ( _braid_CoreElt(core, tgrid) != NULL )
+      {
+         /* Call the user's time grid routine */
+         _braid_BaseTimeGrid(core, app, ta, &ilower, &iupper);
+      }
+      else
+      {
+         // adjusted
+         for (i = 0; i <= iupper - ilower; i++)
+         {
+            ta[i] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
+         }
+      }
+
+      /* Create a grid hierarchy */
+      _braid_InitHierarchy(core, grid, 0);
+      
+      /* Set initial values */
+      _braid_InitGuess(core, 0);
+
+      //setting solution vector
+      if (transfer_vector != NULL) {
+         printf("before setting sol vector:\n");
+         _braid_CoreFcn(core, getValue)(transfer_vector);
+
+         _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
+
+         printf("after setting sol vector:\n");
+         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
+         _braid_CoreFcn(core, getValue)(transfer_vector);
+      }
+
+      /* Let the users sync after initialization */
+      _braid_SyncStatusInit(0, // Iteration
+                            0, // Level
+                            _braid_CoreElt(core, nrefine),
+                            _braid_CoreElt(core, gupper),
+                            0, // done
+                            braid_ASCaller_Drive_AfterInit,
+                            sstatus);
+      _braid_Sync(core, sstatus);
+   }
+
+   /* Initialize sensitivity computation */
+   if ( adjoint )
+   {
+      if (!warm_restart)
+      {
+         /* Initialize and allocate the adjoint variables */
+         _braid_InitAdjointVars(core, grid);
+      }
+      else
+      {
+         /* Prepare for next adjoint iteration in case of warm_restart */
+         _braid_CoreElt(core, optim)->sum_user_obj  = 0.0;
+         _braid_CoreElt(core, optim)->f_bar         = 0.0;
+         if (!obj_only)
+         {
+            _braid_CoreFcn(core, reset_gradient)(_braid_CoreElt(core, app));
+         }
+      }
+
+      if ( obj_only )
+      {
+         _braid_CoreElt(core, record) = 0;
+      }
+      else
+      {
+         _braid_CoreElt(core, record) = 1;
+      }
+   }
+   _braid_CoreElt(core, timer_drive_init) += _braid_MPI_Wtime(core, 2) - timer_drive_init;
+
+   /* Reset from previous calls to braid_drive() */
+   _braid_CoreElt(core, done) = 0;
+
+   printf("before _braid_Drive_Dyn\n");
+   /* Solve with MGRIT */
+   _braid_Drive_Dyn(core, localtime);
+   printf("after _braid_Drive_Dyn\n");
+
+   //newDyn. warm restart turned of, so for every call grid gets initilized
+   //_braid_CoreElt(core, warm_restart) = 1;
+
+   /* Stop timer */
+   localtime = _braid_MPI_Wtime(core, 1) - localtime;
+   MPI_Allreduce(&localtime, &globaltime, 1, braid_MPI_REAL, MPI_MAX, comm_world);
+   _braid_CoreElt(core, localtime)  = localtime;
+   _braid_CoreElt(core, globaltime) = globaltime;
+
+   /* Print statistics for this run */
+   if ( (print_level > 1) && (myid == 0) )
+   {
+      braid_PrintStats(core);
+   }
+
+   /* Print more intrusive timing information, only if level is >= 2 */
+   if (_braid_CoreElt(core, timings) >= 2)
+   {
+      braid_PrintTimers(core);
+   }
+
+   return _braid_error_flag;
+}
 
 /*--------------------------------------------------------------------------
  *--------------------------------------------------------------------------*/
@@ -82,13 +267,22 @@ braid_Drive_Dyn(braid_Core  core)
       }
    }
 
-   printf("-------------------------------------------------------------interval_len: %f\n", interval_len);
+   printf("-------------------------------------------------interval_len: %f trange_per_ts: %f\n", interval_len, trange_per_ts);
+
+   braid_BaseVector transfer_vector = _braid_TAlloc(_braid_BaseVector, 1);
+   transfer_vector->userVector = NULL;
+   transfer_vector->bar        = NULL;
+   transfer_vector->basis      = NULL;
+
+   // helps to find the index if the solution vector for updating after each iteration
+   braid_Int sol_Vector_index = interval_len / trange_per_ts;
 
    braid_Real current_ts = 0.0;
-   braid_Real gupper_count = 1;
+   braid_Int ptr_offset_count = 0;
+   // gupper is global size of fine grid
+   _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts);
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
    for (current_ts = globaltstart; current_ts < globaltstop - interval_len; current_ts += interval_len) {
-      printf("1 ++++++++++++++ tstart: %f tstop: %f\n", current_ts, current_ts + interval_len);
 
       //set parameters
       _braid_CoreElt(core, tstart) = current_ts;
@@ -96,29 +290,96 @@ braid_Drive_Dyn(braid_Core  core)
 
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
 
-      _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts) * gupper_count;
+      // calculate ptr offset for ilower and iupper
+      // if split in two iterations, first ilower = 0 iupper = 5, second ilower = 5 iupper = 10 e.g. for ex-01
+      braid_Int ptr_offset = (interval_len / trange_per_ts) * ptr_offset_count;
 
-      //TODO adjust pointers ilower iupper
-      braid_Drive(core);
+      printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f ptr_offset: %d\n",
+       current_ts, current_ts + interval_len, interval_len / trange_per_ts,
+        (interval_len / trange_per_ts), ptr_offset);
+
+
+      braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
+
+      MPI_Barrier(comm_world);
 
       //here in the future looking for new processes and initializing program for new iteration
-      // like setting solution vector as inout for the next call
-      gupper_count++;
+
+      //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
+      // interval_len / trange_per_ts gibt index vom letzten ts
+      //TODO recv_index schauen
+      // TODO index variabel machen, so nicht richtig, nuss aber immer auf -1 quasi zeigen
+      _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
+      _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+
+      ptr_offset_count++;
+      sol_Vector_index *= 2;
    }
    if (current_ts < globaltstop) {
       // compute the remainding time until tstop
-      printf("2 ++++++++++++++ tstart: %f tstop: %f\n", current_ts, globaltstop);
 
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = globaltstop;
       
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
-      _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts) * gupper_count;
+
+      _braid_CoreElt(core, gupper) = ((globaltstop - current_ts) / trange_per_ts);
 
 
-      
-      braid_Drive(core);
+      // calculate ptr offset for ilower and iupper
+      braid_Int ptr_offset = (interval_len / trange_per_ts) * ptr_offset_count;
 
+      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f ptr_offset: %d\n",
+       current_ts, globaltstop, interval_len / trange_per_ts,
+        ((globaltstop - current_ts) / trange_per_ts), ptr_offset);
+
+      braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
+
+      // get solution vector for research
+      _braid_Grid **grid1 = _braid_GridElt(core, grids);
+      braid_Int nlevels1 = _braid_GridElt(core, nlevels);
+
+      // for (int i = 0; i < nlevels1; i++) {
+
+      //    printf("level: %d\n", i);      
+
+      //    braid_Int ilower1 = _braid_GridElt(grid1[i], ilower);
+      //    braid_Int iupper1 = _braid_GridElt(grid1[i], iupper);
+      //    braid_Int level1 = _braid_GridElt(grid1[i], level);
+      //    braid_Int clower1 = _braid_GridElt(grid1[i], clower);
+      //    braid_Int cupper1 = _braid_GridElt(grid1[i], cupper);
+      //    braid_Int gupper1 = _braid_GridElt(grid1[i], gupper);
+      //    braid_Int cfactor1 = _braid_GridElt(grid1[i], cfactor);
+      //    braid_Int ncpoints1 = _braid_GridElt(grid1[i], ncpoints);
+      //    braid_Real *ta1 = _braid_GridElt(grid1[i], ta);
+      //    braid_BaseVector *ua1 = _braid_GridElt(grid1[i], ua);
+      //    braid_BaseVector *va1 = _braid_GridElt(grid1[i], va);
+      //    braid_BaseVector *fa1 = _braid_GridElt(grid1[i], fa);
+
+
+
+      //    printf("ilower: %d iupper: %d level: %d clower: %d cupper: %d gupper: %d cfactor: %d ncpoints: %d\n",
+      //    ilower1, iupper1, level1, clower1, cupper1, gupper1, cfactor1, ncpoints1);
+
+      //    for (int j = 0; j < gupper1 + 2; j++) {
+      //       printf("ta[%d]: %f\n", j, ta1[j]);
+      //    }
+      //    if (i == 0) {
+      //    for (int j = 0; j < ncpoints1; j++) {
+      //       printf("printing ua:\n");
+      //       _braid_CoreFcn(core, clone)(app, ua1[j]->userVector, &(transfer_vector->userVector));
+      //       _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+      //    }
+      //    }
+      // }
+
+      // printf("\n _braid_UGetVectorRef level 0 index = ntime gives:\n");
+      // _braid_UGetVectorRef(core, 0, ntime, &transfer_vector);
+      // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+
+      printf("\n _braid_UGetVector level 0 index = ntime gives:\n");
+      _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
+      _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
    }
 
    return _braid_error_flag;
@@ -262,8 +523,7 @@ braid_Drive(braid_Core  core)
    _braid_Drive(core, localtime);
 
    /* Turn on warm_restart, so further calls to braid_drive() don't initialize the grid again. */
-   //newDyn turned of, so for every call grid gets initilized
-   //_braid_CoreElt(core, warm_restart) = 1;
+   _braid_CoreElt(core, warm_restart) = 1;
 
    /* Stop timer */
    localtime = _braid_MPI_Wtime(core, 1) - localtime;
@@ -409,6 +669,8 @@ braid_Init_Dyn(const char comm_world_pset [],
            braid_PtFcnFree        free,
            braid_PtFcnSum         sum,
            braid_PtFcnSpatialNorm spatialnorm,
+           //newDyn
+           braid_PtFcnGetValue    getValue,
            braid_PtFcnAccess      access,
            braid_PtFcnBufSize     bufsize,
            braid_PtFcnBufPack     bufpack,
@@ -489,6 +751,7 @@ braid_Init_Dyn(const char comm_world_pset [],
    _braid_CoreElt(core, session)         = session;
    _braid_CoreElt(core, world_group)     = world_group;
    _braid_CoreElt(core, interval_len)    = interval_len;
+   _braid_CoreElt(core, getValue)        = getValue;
 
    _braid_CoreElt(core, comm_world)      = comm_world;
    _braid_CoreElt(core, comm)            = comm;

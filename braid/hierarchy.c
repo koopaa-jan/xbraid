@@ -407,6 +407,8 @@ _braid_InitGuess(braid_Core  core,
    braid_BaseVector  u;
    braid_Int         i, iu, sflag;
 
+   printf("ilower: %d iupper: %d clower: %d cupper: %d cfactor: %d\n", ilower, iupper, clower, cupper, cfactor);
+
    if ( (level == 0) && (seq_soln == 1) )
    {
       /* If first processor, grab initial condition */
@@ -468,6 +470,7 @@ _braid_InitGuess(braid_Core  core,
          /* Only initialize the C-points on the finest grid */
          for (i = clower; i <= cupper; i += cfactor)
          {
+            //printf("t: %f\n", ta[i-ilower]);
             _braid_BaseInit(core, app,  ta[i-ilower], &u);
             _braid_USetVectorRef(core, level, i, u);
          }
@@ -475,6 +478,7 @@ _braid_InitGuess(braid_Core  core,
    }
    else
    {
+      printf("level != 0\n");
       for (i = ilower; i <= iupper; i++)
       {
          _braid_UGetIndex(core, level, i, &iu, &sflag);

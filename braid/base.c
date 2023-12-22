@@ -137,7 +137,7 @@ _braid_BaseInit(braid_Core        core,
    /* Allocate and initialize the userVector */
    timer = _braid_MPI_Wtime(core, 2);
    _braid_CoreFcn(core, init)(app, t, &(u->userVector));
-
+   
    /* Allocate and initialize the basis vectors */
    if ( delta_correct )
    {

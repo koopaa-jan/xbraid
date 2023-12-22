@@ -95,6 +95,8 @@ my_Step(braid_App        app,
     /* Use backward Euler to propagate solution */
     (u->value) = 1./(1. + tstop-tstart)*(u->value);
 
+    //printf("step+++++++++++++++++++++++++++++++++++++++---------------------\n");
+
     return 0;
 }
 
@@ -115,6 +117,8 @@ my_Init(braid_App     app,
         (u->value) = 0.456;
     }
     *u_ptr = u;
+
+    //printf("init---------------------\n");
 
     return 0;
 }
@@ -172,15 +176,38 @@ my_Access(braid_App          app,
     int        index;
     char       filename[255];
     FILE      *file;
+    int        iteration = 0;
 
     braid_AccessStatusGetTIndex(astatus, &index);
-    sprintf(filename, "%s.%04d.%03d", "ex-01.out", index, app->rank);
+    sprintf(filename, "%s.%d.%04d.%03d", "ex-01.out", iteration, index, app->rank);
+
+    file = fopen(filename, "r");
+
+    while (file != NULL) {
+        iteration++;
+        fclose(file);
+
+        sprintf(filename, "%s.%d.%04d.%03d", "ex-01.out", iteration, index, app->rank);
+
+        file = fopen(filename, "r");
+    }
+    if (iteration != 0) {
+        fclose(file);
+    }
     file = fopen(filename, "w");
     fprintf(file, "%.14e\n", (u->value));
     fflush(file);
     fclose(file);
 
+    printf("access at index: %d---------------------------------------\n", index);
+
     return 0;
+}
+
+double
+my_GetValue(braid_Vector u) {
+    printf("value of u: %f\n", u->value);
+    return 0.;
 }
 
 int
@@ -266,7 +293,7 @@ int main (int argc, char *argv[])
 
     //newDyn
     braid_Init_Dyn("mpi://WORLD", "mpi://WORLD", tstart, tstop, ntime, interval_len, app,
-               my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm,
+               my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, my_GetValue,
                my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
     
     //old

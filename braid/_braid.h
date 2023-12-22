@@ -261,6 +261,7 @@ typedef struct _braid_Core_struct
    MPI_Group              world_group;
    MPI_Comm               comm_world;
    braid_Real             interval_len;
+   braid_PtFcnGetValue    getValue;
    MPI_Comm               comm;             /**< communicator for the time dimension */
    braid_Int              myid_world;       /**< my rank in the world communicator */
    braid_Int              myid;             /**< my rank in the time communicator */
@@ -658,6 +659,31 @@ _braid_USetVector(braid_Core        core,
                   braid_Int         move);
 
 /**
+ * Returns a copy of the u-vector on grid *level* at point *index*.  If *index*
+ * is my "receive index" (as set by UCommInit(), for example), the u-vector will
+ * be received from a neighbor processor.  If the u-vector is not stored, NULL
+ * is returned.
+ */
+braid_Int
+_braid_UGetVector_Dyn(braid_Core        core,
+                  braid_Int         level,
+                  braid_Int         index,
+                  braid_Vector *u_ptr);
+
+/**
+ * Stores the u-vector on grid *level* at point *index*.  If *index* is my "send
+ * index", a send is initiated to a neighbor processor.  If *move* is true, the
+ * u-vector is moved into core storage instead of copied.  If the u-vector is
+ * not stored, nothing is done.
+ */
+braid_Int
+_braid_USetVector_Dyn(braid_Core        core,
+                  braid_Int         level,
+                  braid_Int         index,
+                  braid_Vector  u,
+                  braid_Int         move);
+
+/**
  * Basic communication (from the left, to the right).  Arguments *recv_msg* and
  * *send_msg* are booleans that indicate whether or not to initiate a receive
  * from the left and a send to the right respectively.  Argument *send_now*
@@ -1041,6 +1067,13 @@ braid_Int
 _braid_CopyFineToCoarse(braid_Core  core);
 
 /* drive.c */
+
+/**
+ * Main loop for dynamic MGRIT
+ */
+braid_Int
+_braid_Drive_Dyn(braid_Core core, 
+             braid_Real localtime);
 
 /**
  * Main loop for MGRIT

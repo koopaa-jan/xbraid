@@ -54,8 +54,9 @@ _braid_FAccess(braid_Core     core,
    /* Start from the right-most interval */
    for (interval = ncpoints; interval > -1; interval--)
    {
+      
       _braid_GetInterval(core, level, interval, &flo, &fhi, &ci);
-
+      //printf("start for interval: %d fi: %d flo: %d fhi: %d\n", interval, fi, flo, fhi);
       /* Give access at F-points */
       if (flo <= fhi)
       {
@@ -63,6 +64,7 @@ _braid_FAccess(braid_Core     core,
       }
       for (fi = flo; fi <= fhi; fi++)
       {
+         //printf("start second for fi: %d flo: %d fhi: %d\n", fi, flo, fhi);
          _braid_Step(core, level, fi, braid_ASCaller_FAccess, NULL, u);
          _braid_USetVector(core, level, fi, u, 0);
 
@@ -70,6 +72,7 @@ _braid_FAccess(braid_Core     core,
          {
             _braid_AccessStatusInit( ta[fi-ilower], fi, rnorm, iter, level, nrefine, gupper,
                                      done, 0, braid_ASCaller_FAccess, u->basis, astatus);
+            //printf("first access\n");
             _braid_AccessVector(core, astatus, u);
          }
 
@@ -80,7 +83,7 @@ _braid_FAccess(braid_Core     core,
             _braid_ObjectiveStatusInit(ta[fi-ilower], fi, iter, level, nrefine, gupper, ostatus);
             _braid_AddToObjective(core, u, ostatus);
          }
-
+         //printf("end of second loop\n");
       }
       if (flo <= fhi)
       {
@@ -96,6 +99,7 @@ _braid_FAccess(braid_Core     core,
          {
             _braid_AccessStatusInit( ta[ci-ilower], ci, rnorm, iter, level, nrefine, gupper,
                                      done, 0, braid_ASCaller_FAccess, u->basis, astatus);
+            //printf("second access\n");
             _braid_AccessVector(core, astatus, u);
          }
 

@@ -202,6 +202,10 @@ typedef braid_Int
                           braid_Real    *norm_ptr  /**< output, norm of braid_Vector (this is a spatial norm) */ 
                           );
 
+
+typedef braid_Real
+(*braid_PtFcnGetValue)(braid_Vector u);
+
 /**
  * (optional) Compute an inner (scalar) product between two braid_Vectors
  * *prod_ptr* = <*u*, *v*>
@@ -581,6 +585,7 @@ braid_Init_Dyn(const char comm_world [],  /**< Global pset for space and time */
            braid_PtFcnFree        free,        /**< Free a braid_Vector*/
            braid_PtFcnSum         sum,         /**< Compute vector sum of two braid_Vectors*/
            braid_PtFcnSpatialNorm spatialnorm, /**< Compute norm of a braid_Vector, this is a norm only over space */
+           braid_PtFcnGetValue    getValue,
            braid_PtFcnAccess      access,      /**< Allows access to XBraid and current braid_Vector */
            braid_PtFcnBufSize     bufsize,     /**< Computes size for MPI buffer for one braid_Vector */
            braid_PtFcnBufPack     bufpack,     /**< Packs MPI buffer to contain one braid_Vector*/
@@ -590,6 +595,15 @@ braid_Init_Dyn(const char comm_world [],  /**< Global pset for space and time */
 
 braid_Int
 braid_Destroy_Dyn(braid_Core core);
+
+/*
+ * Does the same as braid_Drive but is adjusted for dynamic processes
+*/
+braid_Int
+braid_Drive_Dyn_Iterate(braid_Core  core,     /**< braid_Core (_braid_Core) struct*/
+                        braid_Int ptr_offset,
+                        braid_Vector solVector
+            );
 
 /**
  * Carry out a simulation with XBraid, but dynamically newDyn. Integrate in time.
