@@ -191,15 +191,12 @@ my_Access(braid_App          app,
 
         file = fopen(filename, "r");
     }
-    if (iteration != 0) {
-        fclose(file);
-    }
     file = fopen(filename, "w");
     fprintf(file, "%.14e\n", (u->value));
     fflush(file);
     fclose(file);
 
-    printf("access at index: %d---------------------------------------\n", index);
+    printf("access at index: %d iteration: % d---------------------------------------\n", index, iteration);
 
     return 0;
 }

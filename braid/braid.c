@@ -40,7 +40,6 @@ FILE    *_braid_printfile  = NULL;
 braid_Int
 braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector transfer_vector)
 {
-   printf("test\n");
    MPI_Comm             comm_world      = _braid_CoreElt(core, comm_world);
    braid_Int            myid            = _braid_CoreElt(core, myid_world);
    braid_Real           tstart          = _braid_CoreElt(core, tstart);
@@ -60,8 +59,6 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
    braid_Real     localtime, globaltime;
    braid_Real     timer_drive_init;
 
-   printf("test1\n");
-
    timer_drive_init = _braid_MPI_Wtime(core, 2);
    /* Check for non-supported adjoint features */
    if (adjoint)
@@ -73,7 +70,6 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
    {
       _braid_DeltaFeatureCheck(core);
    }
-   printf("test2\n");
    if (myid == 0 )
    {
       if (!warm_restart && print_level > 0)
@@ -95,8 +91,6 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
          }
       }
    }
-
-   printf("test3\n");
 
    /* Start timer */
    localtime = _braid_MPI_Wtime(core, 1);
@@ -135,7 +129,7 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
       /* Set initial values */
       _braid_InitGuess(core, 0);
 
-      //setting solution vector
+      //setting solution vector for next iteration
       if (transfer_vector != NULL) {
          printf("before setting sol vector:\n");
          _braid_CoreFcn(core, getValue)(transfer_vector);
@@ -269,6 +263,7 @@ braid_Drive_Dyn(braid_Core  core)
 
    printf("-------------------------------------------------interval_len: %f trange_per_ts: %f\n", interval_len, trange_per_ts);
 
+   //helps to get the solution vector and store for next iteration
    braid_BaseVector transfer_vector = _braid_TAlloc(_braid_BaseVector, 1);
    transfer_vector->userVector = NULL;
    transfer_vector->bar        = NULL;
@@ -307,8 +302,8 @@ braid_Drive_Dyn(braid_Core  core)
 
       //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
       // interval_len / trange_per_ts gibt index vom letzten ts
-      //TODO recv_index schauen
-      // TODO index variabel machen, so nicht richtig, nuss aber immer auf -1 quasi zeigen
+      //TODO look into recv_index
+
       _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
       _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
 
@@ -334,6 +329,9 @@ braid_Drive_Dyn(braid_Core  core)
         ((globaltstop - current_ts) / trange_per_ts), ptr_offset);
 
       braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
+
+
+      // following outdated:
 
       // get solution vector for research
       _braid_Grid **grid1 = _braid_GridElt(core, grids);
@@ -377,9 +375,12 @@ braid_Drive_Dyn(braid_Core  core)
       // _braid_UGetVectorRef(core, 0, ntime, &transfer_vector);
       // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
 
-      printf("\n _braid_UGetVector level 0 index = ntime gives:\n");
-      _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
-      _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+      // if simulations is split into at least two iterations, print the solution vector at the end again
+      if (transfer_vector->userVector != NULL) {
+         printf("\n _braid_UGetVector level 0 index = ntime gives:\n");
+         _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
+         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+      }
    }
 
    return _braid_error_flag;
