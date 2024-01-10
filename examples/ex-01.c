@@ -118,7 +118,7 @@ my_Init(braid_App     app,
     }
     *u_ptr = u;
 
-    //printf("init---------------------\n");
+    //printf("init---------------------t: %f\n", t);
 
     return 0;
 }
@@ -196,7 +196,8 @@ my_Access(braid_App          app,
     fflush(file);
     fclose(file);
 
-    printf("access at index: %d iteration: % d---------------------------------------\n", index, iteration);
+    //printf("access at index: %d iteration: % d---------------------------------------\n", index, iteration);
+    printf("value of accessed vector u: %f\n", u->value);
 
     return 0;
 }

@@ -125,7 +125,7 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
 
       /* Create a grid hierarchy */
       _braid_InitHierarchy(core, grid, 0);
-      
+
       /* Set initial values */
       _braid_InitGuess(core, 0);
 
@@ -137,8 +137,13 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
          _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
 
          printf("after setting sol vector:\n");
-         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
-         _braid_CoreFcn(core, getValue)(transfer_vector);
+         
+
+        _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
+        printf("test\n");
+        _braid_CoreFcn(core, getValue)(transfer_vector);
+
+         printf("after updating sol vector\n");
       }
 
       /* Let the users sync after initialization */
@@ -278,7 +283,6 @@ braid_Drive_Dyn(braid_Core  core)
    _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts);
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
    for (current_ts = globaltstart; current_ts < globaltstop - interval_len; current_ts += interval_len) {
-
       //set parameters
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = current_ts + interval_len;
@@ -304,8 +308,39 @@ braid_Drive_Dyn(braid_Core  core)
       // interval_len / trange_per_ts gibt index vom letzten ts
       //TODO look into recv_index
 
-      _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
+      // printf("before get vector index: %d\n", sol_Vector_index);
+
+      // _braid_Grid **grids = _braid_CoreElt(core, grids);
+
+      // braid_BaseVector *ua = _braid_GridElt(grids[0], ua);
+
+      // braid_BaseVector ulast = _braid_GridElt(grids[0], ulast);
+
+      
+      // if (ulast == NULL) {
+      //    printf("last c vector is:\n");
+
+      //    _braid_UGetVector(core, 0, sol_Vector_index, &transfer_vector);
+      //    _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+
+      // } else {
+      //    printf("the ulast vector value is:\n");
+      //    transfer_vector->userVector = ulast->userVector;
+      //    _braid_CoreFcn(core, getValue)(ulast->userVector);
+      // }
+
+      printf("UGetLast returns:\n");
+      _braid_UGetLast(core, &transfer_vector);
       _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+
+      // for (size_t i = 0; i < 10; i++)
+      // {
+      //    if (ua[i]->userVector != NULL) {
+      //       printf("ua at index %ld is:", i);
+      //       _braid_CoreFcn(core, getValue)(ua[i]->userVector);
+      //       printf("\n");
+      //    }
+      // }
 
       ptr_offset_count++;
       sol_Vector_index *= 2;
@@ -315,8 +350,8 @@ braid_Drive_Dyn(braid_Core  core)
 
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = globaltstop;
-      
-      _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
+
+      _braid_CoreElt(core, ntime) = (globaltstop - current_ts) / trange_per_ts;
 
       _braid_CoreElt(core, gupper) = ((globaltstop - current_ts) / trange_per_ts);
 
@@ -325,7 +360,7 @@ braid_Drive_Dyn(braid_Core  core)
       braid_Int ptr_offset = (interval_len / trange_per_ts) * ptr_offset_count;
 
       printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f ptr_offset: %d\n",
-       current_ts, globaltstop, interval_len / trange_per_ts,
+       current_ts, globaltstop, (globaltstop - current_ts) / trange_per_ts,
         ((globaltstop - current_ts) / trange_per_ts), ptr_offset);
 
       braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
@@ -334,12 +369,12 @@ braid_Drive_Dyn(braid_Core  core)
       // following outdated:
 
       // get solution vector for research
-      _braid_Grid **grid1 = _braid_GridElt(core, grids);
-      braid_Int nlevels1 = _braid_GridElt(core, nlevels);
+      // _braid_Grid **grid1 = _braid_GridElt(core, grids);
+      // braid_Int nlevels1 = _braid_GridElt(core, nlevels);
 
       // for (int i = 0; i < nlevels1; i++) {
 
-      //    printf("level: %d\n", i);      
+      //    printf("level: %d\n", i);
 
       //    braid_Int ilower1 = _braid_GridElt(grid1[i], ilower);
       //    braid_Int iupper1 = _braid_GridElt(grid1[i], iupper);
@@ -376,11 +411,10 @@ braid_Drive_Dyn(braid_Core  core)
       // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
 
       // if simulations is split into at least two iterations, print the solution vector at the end again
-      if (transfer_vector->userVector != NULL) {
-         printf("\n _braid_UGetVector level 0 index = ntime gives:\n");
-         _braid_UGetVector(core, 0, sol_Vector_index - 1, &transfer_vector);
-         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-      }
+      // if (transfer_vector->userVector != NULL) {
+      //    printf("\n level 0 index = ntime gives:\n");
+      //    _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+      // }
    }
 
    return _braid_error_flag;
@@ -560,7 +594,7 @@ braid_Destroy_Dyn(braid_Core core) {
       braid_Int               cfactor         = _braid_GridElt(grids[0], cfactor);
       braid_Int               gupper          = _braid_CoreElt(core, gupper);
       braid_Int               richardson      = _braid_CoreElt(core, richardson);
-      braid_Int               est_error       = _braid_CoreElt(core, est_error); 
+      braid_Int               est_error       = _braid_CoreElt(core, est_error);
       char                   *timer_file_stem = _braid_CoreElt(core, timer_file_stem);
       braid_Int               level;
 
@@ -577,7 +611,7 @@ braid_Destroy_Dyn(braid_Core core) {
       if (_braid_CoreElt(core, lyap_exp))
       {
 
-         braid_Int npoints; 
+         braid_Int npoints;
          if (nlevels == 1)
          {
             npoints = _braid_GridElt(grids[0], iupper) - _braid_GridElt(grids[0], ilower);
@@ -636,7 +670,7 @@ braid_Destroy_Dyn(braid_Core core) {
       MPI_Session_finalize(&session);
 
       _braid_TFree(core);
-   
+
       if (timer_file_stem != NULL)
       {
          _braid_TFree(timer_file_stem);
@@ -842,7 +876,7 @@ braid_Init_Dyn(const char comm_world_pset [],
    _braid_CoreElt(core, lyap_exp)         = lyap_exp;
    _braid_CoreElt(core, delta_defer_iter) = delta_defer_iter;
    _braid_CoreElt(core, delta_defer_lvl)  = delta_defer_lvl;
-   
+
 
    /* Adjoint */
    _braid_CoreElt(core, adjoint)               = adjoint;
@@ -1069,7 +1103,7 @@ braid_Init(MPI_Comm               comm_world,
    _braid_CoreElt(core, lyap_exp)         = lyap_exp;
    _braid_CoreElt(core, delta_defer_iter) = delta_defer_iter;
    _braid_CoreElt(core, delta_defer_lvl)  = delta_defer_lvl;
-   
+
 
    /* Adjoint */
    _braid_CoreElt(core, adjoint)               = adjoint;
@@ -1214,7 +1248,7 @@ braid_Destroy(braid_Core  core)
       braid_Int               cfactor         = _braid_GridElt(grids[0], cfactor);
       braid_Int               gupper          = _braid_CoreElt(core, gupper);
       braid_Int               richardson      = _braid_CoreElt(core, richardson);
-      braid_Int               est_error       = _braid_CoreElt(core, est_error); 
+      braid_Int               est_error       = _braid_CoreElt(core, est_error);
       char                   *timer_file_stem = _braid_CoreElt(core, timer_file_stem);
       braid_Int               level;
 
@@ -1231,7 +1265,7 @@ braid_Destroy(braid_Core  core)
       if (_braid_CoreElt(core, lyap_exp))
       {
 
-         braid_Int npoints; 
+         braid_Int npoints;
          if (nlevels == 1)
          {
             npoints = _braid_GridElt(grids[0], iupper) - _braid_GridElt(grids[0], ilower);
@@ -1282,7 +1316,7 @@ braid_Destroy(braid_Core  core)
       _braid_TFree(grids);
 
       _braid_TFree(core);
-   
+
       if (timer_file_stem != NULL)
       {
          _braid_TFree(timer_file_stem);
@@ -1294,7 +1328,7 @@ braid_Destroy(braid_Core  core)
    {
       fclose(_braid_printfile);
    }
-   
+
 
 
    return _braid_error_flag;
@@ -1472,14 +1506,14 @@ braid_SetTimerFile(braid_Core     core,
 
    _braid_CoreElt(core, timer_file_stem) = malloc((length + 1) * sizeof(char));
    char *timer_file_stem = _braid_CoreElt(core, timer_file_stem);
-   
+
    _braid_CoreElt(core, timer_file_stem_len) = length;
-   
+
    for(braid_Int i = 0; i < length; i++)
    {
       timer_file_stem[i] = filestem[i];
    }
-   
+
    return _braid_error_flag;
 }
 
@@ -1488,12 +1522,12 @@ braid_SetTimerFile(braid_Core     core,
 braid_Int
 braid_PrintTimers(braid_Core  core)
 {
-    
+
    braid_Int myid          = _braid_CoreElt(core, myid_world);
    char *timer_file_stem   = _braid_CoreElt(core, timer_file_stem);
    braid_Int length        = _braid_CoreElt(core, timer_file_stem_len);
-   FILE *fp; 
-   
+   FILE *fp;
+
    /* create rank specific filename */
    char filename[length+10];
    char rank[] = "0000";
@@ -1512,36 +1546,36 @@ braid_PrintTimers(braid_Core  core)
    filename[length+6] = 't';
    filename[length+7] = 'x';
    filename[length+8] = 't';
-   filename[length+9] = '\0'; 
-   
+   filename[length+9] = '\0';
+
    if ((fp = fopen(filename, "w")) == NULL)
    {
       _braid_printf("  Braid: Error: can't open timer output file %s\n", filename);
       exit(1);
    }
 
-   fprintf(fp, "\nTimings for rank %d\n", myid); 
-   fprintf(fp, "   drive_init       %1.3e\n",  _braid_CoreElt(core, timer_drive_init)); 
-   fprintf(fp, "   coarse solve     %1.3e\n",  _braid_CoreElt(core, timer_coarse_solve)); 
-   fprintf(fp, "   step             %1.3e\n",  _braid_CoreElt(core, timer_user_step)); 
-   fprintf(fp, "   init             %1.3e\n",  _braid_CoreElt(core, timer_user_init)); 
-   fprintf(fp, "   clone            %1.3e\n",  _braid_CoreElt(core, timer_user_clone)); 
-   fprintf(fp, "   free             %1.3e\n",  _braid_CoreElt(core, timer_user_free)); 
-   fprintf(fp, "   sum              %1.3e\n",  _braid_CoreElt(core, timer_user_sum)); 
-   fprintf(fp, "   spatialnorm      %1.3e\n",  _braid_CoreElt(core, timer_user_spatialnorm)); 
-   fprintf(fp, "   innerprod        %1.3e\n",  _braid_CoreElt(core, timer_user_inner_prod)); 
-   fprintf(fp, "   bufsize          %1.3e\n",  _braid_CoreElt(core, timer_user_bufsize)); 
-   fprintf(fp, "   bufpack          %1.3e\n",  _braid_CoreElt(core, timer_user_bufpack)); 
-   fprintf(fp, "   bufunpack        %1.3e\n\n",  _braid_CoreElt(core, timer_user_bufunpack)); 
-   fprintf(fp, "   access           %1.3e\n",  _braid_CoreElt(core, timer_user_access)); 
-   fprintf(fp, "   sync             %1.3e\n",  _braid_CoreElt(core, timer_user_sync)); 
-   fprintf(fp, "   residual         %1.3e\n",  _braid_CoreElt(core, timer_user_residual)); 
-   fprintf(fp, "   scoarsen         %1.3e\n",  _braid_CoreElt(core, timer_user_scoarsen)); 
-   fprintf(fp, "   srefine          %1.3e\n\n",  _braid_CoreElt(core, timer_user_srefine)); 
-   fprintf(fp, "   MPI_recv         %1.3e\n",  _braid_CoreElt(core, timer_MPI_recv)); 
-   fprintf(fp, "   MPI_send         %1.3e\n",  _braid_CoreElt(core, timer_MPI_send)); 
-   fprintf(fp, "   MPI_wait         %1.3e\n",  _braid_CoreElt(core, timer_MPI_wait)); 
-   fprintf(fp, "   MPI_wait_coarse  %1.3e\n",  _braid_CoreElt(core, timer_MPI_wait_coarse)); 
+   fprintf(fp, "\nTimings for rank %d\n", myid);
+   fprintf(fp, "   drive_init       %1.3e\n",  _braid_CoreElt(core, timer_drive_init));
+   fprintf(fp, "   coarse solve     %1.3e\n",  _braid_CoreElt(core, timer_coarse_solve));
+   fprintf(fp, "   step             %1.3e\n",  _braid_CoreElt(core, timer_user_step));
+   fprintf(fp, "   init             %1.3e\n",  _braid_CoreElt(core, timer_user_init));
+   fprintf(fp, "   clone            %1.3e\n",  _braid_CoreElt(core, timer_user_clone));
+   fprintf(fp, "   free             %1.3e\n",  _braid_CoreElt(core, timer_user_free));
+   fprintf(fp, "   sum              %1.3e\n",  _braid_CoreElt(core, timer_user_sum));
+   fprintf(fp, "   spatialnorm      %1.3e\n",  _braid_CoreElt(core, timer_user_spatialnorm));
+   fprintf(fp, "   innerprod        %1.3e\n",  _braid_CoreElt(core, timer_user_inner_prod));
+   fprintf(fp, "   bufsize          %1.3e\n",  _braid_CoreElt(core, timer_user_bufsize));
+   fprintf(fp, "   bufpack          %1.3e\n",  _braid_CoreElt(core, timer_user_bufpack));
+   fprintf(fp, "   bufunpack        %1.3e\n\n",  _braid_CoreElt(core, timer_user_bufunpack));
+   fprintf(fp, "   access           %1.3e\n",  _braid_CoreElt(core, timer_user_access));
+   fprintf(fp, "   sync             %1.3e\n",  _braid_CoreElt(core, timer_user_sync));
+   fprintf(fp, "   residual         %1.3e\n",  _braid_CoreElt(core, timer_user_residual));
+   fprintf(fp, "   scoarsen         %1.3e\n",  _braid_CoreElt(core, timer_user_scoarsen));
+   fprintf(fp, "   srefine          %1.3e\n\n",  _braid_CoreElt(core, timer_user_srefine));
+   fprintf(fp, "   MPI_recv         %1.3e\n",  _braid_CoreElt(core, timer_MPI_recv));
+   fprintf(fp, "   MPI_send         %1.3e\n",  _braid_CoreElt(core, timer_MPI_send));
+   fprintf(fp, "   MPI_wait         %1.3e\n",  _braid_CoreElt(core, timer_MPI_wait));
+   fprintf(fp, "   MPI_wait_coarse  %1.3e\n",  _braid_CoreElt(core, timer_MPI_wait_coarse));
 
    fclose(fp);
    return _braid_error_flag;
@@ -1579,9 +1613,9 @@ braid_ResetTimer(braid_Core  core)
 
 /*--------------------------------------------------------------------------
  *--------------------------------------------------------------------------*/
- 
+
 braid_Int
-braid_WriteConvHistory(braid_Core core,    
+braid_WriteConvHistory(braid_Core core,
                        const char* filename)
 {
    braid_Int     myid          = _braid_CoreElt(core, myid_world);
@@ -1630,7 +1664,7 @@ braid_WriteConvHistory(braid_Core core,
      fclose(braidlog);
      _braid_TFree(resnorms);
   }
-  
+
   return _braid_error_flag;
 }
 
@@ -1897,8 +1931,8 @@ braid_SetCRelaxWt(braid_Core  core,
    braid_Int richardson  = _braid_CoreElt(core, richardson);
 
    if( richardson && (Cwt != 1.0) )
-   { 
-      
+   {
+
      _braid_printf("Weighted relaxation and Richardson extrapolation are incompatible.  Turning off weighted relaxation.\n");
       return _braid_error_flag;
    }
@@ -2518,7 +2552,7 @@ braid_Int
 braid_SetRevertedRanks(braid_Core core,
                        braid_Int  boolean)
 {
-   _braid_CoreElt(core, reverted_ranks) = boolean; 
+   _braid_CoreElt(core, reverted_ranks) = boolean;
 
    return _braid_error_flag;
 }
@@ -2570,7 +2604,7 @@ braid_SetRichardsonEstimation(braid_Core core,
                               braid_Int  richardson,
                               braid_Int  local_order)
 {
-   
+
    braid_Real  *CWts        = _braid_CoreElt(core, CWts);
    braid_Real   CWt_default = _braid_CoreElt(core, CWt_default);
    braid_Int    ml          = _braid_CoreElt(core, max_levels);
@@ -2622,8 +2656,8 @@ braid_SetTimings(braid_Core core,
  *--------------------------------------------------------------------------*/
 
 braid_Int
-braid_SetDeltaCorrection(braid_Core           core,      
-                         braid_Int            rank,      
+braid_SetDeltaCorrection(braid_Core           core,
+                         braid_Int            rank,
                          braid_PtFcnInitBasis init_basis,
                          braid_PtFcnInnerProd inner_prod)
 {
