@@ -191,13 +191,16 @@ my_Access(braid_App          app,
 
         file = fopen(filename, "r");
     }
-    file = fopen(filename, "w");
-    fprintf(file, "%.14e\n", (u->value));
-    fflush(file);
-    fclose(file);
+    if (!(iteration != 0 && index == 0)) {
+        file = fopen(filename, "w");
+        fprintf(file, "%.14e\n", (u->value));
+        fflush(file);
+        fclose(file);
+
+        printf("value of accessed vector u: %f\n", u->value);
+    }
 
     //printf("access at index: %d iteration: % d---------------------------------------\n", index, iteration);
-    printf("value of accessed vector u: %f\n", u->value);
 
     return 0;
 }

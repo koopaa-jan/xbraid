@@ -280,7 +280,8 @@ _braid_InitHierarchy(braid_Core    core,
          _braid_GetProc(core, level, ilower-1, &left_proc);
          _braid_GetProc(core, level, iupper+1, &right_proc);
 
-         printf("Init Hierarchy: start level: %d nlevels: %d ilower: %d iupper: %d\n", level, nlevels, ilower, iupper);
+         printf("Init Hierarchy: start level: %d nlevels: %d ilower: %d iupper: %d left: %d right: %d\n", 
+         level, nlevels, ilower, iupper, left_proc, right_proc);
          
          /* Post receive to set ta[-1] on each processor*/
          if (left_proc > -1)
@@ -323,15 +324,12 @@ _braid_InitHierarchy(braid_Core    core,
          /* Finish receive */
          if (left_proc > -1)
          {
-            printf("req1\n");
             MPI_Wait(&request1, &status);
          }
          if ( (right_proc > -1) && ( _braid_CoreElt(core, scoarsen) != NULL ) )
          {
-            printf("req2\n");
             MPI_Wait(&request2, &status);
          }
-         printf("req after\n");
       }
    }
 

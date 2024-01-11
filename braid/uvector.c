@@ -173,7 +173,6 @@ _braid_UGetVector(braid_Core         core,
 
    if (index == recv_index)
    {
-      printf("index == recv_index\n");
       /* If a recv was initiated, receive u value from neighbor processor */
       if (recv_index > _braid_RecvIndexNull)
       {
@@ -185,7 +184,6 @@ _braid_UGetVector(braid_Core         core,
    }
    else
    {
-      //printf("index != recv_index\n");
       _braid_UGetIndex(core, level, index, &iu, &sflag);
       if (sflag == 0)
       {

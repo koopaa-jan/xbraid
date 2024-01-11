@@ -101,8 +101,8 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
       /* Create fine grid */
       _braid_GetDistribution(core, &ilower, &iupper);
       // adjust ptrs
-      ilower += ptr_offset;
-      iupper += ptr_offset;
+      //ilower += ptr_offset;
+      //iupper += ptr_offset;
 
       _braid_GridInit(core, 0, ilower, iupper, &grid);
       printf("after GridInit ilower: %d iupper: %d\n", ilower, iupper);
@@ -120,6 +120,7 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
          for (i = 0; i <= iupper - ilower; i++)
          {
             ta[i] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
+            //printf("ta[%d]: %f\n", i, ta[i]);
          }
       }
 
@@ -131,19 +132,19 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
 
       //setting solution vector for next iteration
       if (transfer_vector != NULL) {
-         printf("before setting sol vector:\n");
-         _braid_CoreFcn(core, getValue)(transfer_vector);
+         // printf("before setting sol vector:\n");
+         // _braid_CoreFcn(core, getValue)(transfer_vector);
 
          _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
 
-         printf("after setting sol vector:\n");
+      //    printf("after setting sol vector:\n");
          
 
-        _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
-        printf("test\n");
-        _braid_CoreFcn(core, getValue)(transfer_vector);
+      //   _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
+      //   printf("test\n");
+      //   _braid_CoreFcn(core, getValue)(transfer_vector);
 
-         printf("after updating sol vector\n");
+      //    printf("after updating sol vector\n");
       }
 
       /* Let the users sync after initialization */
@@ -190,10 +191,10 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
    /* Reset from previous calls to braid_drive() */
    _braid_CoreElt(core, done) = 0;
 
-   printf("before _braid_Drive_Dyn\n");
+   //printf("before _braid_Drive_Dyn\n");
    /* Solve with MGRIT */
    _braid_Drive_Dyn(core, localtime);
-   printf("after _braid_Drive_Dyn\n");
+   //printf("after _braid_Drive_Dyn\n");
 
    //newDyn. warm restart turned of, so for every call grid gets initilized
    //_braid_CoreElt(core, warm_restart) = 1;

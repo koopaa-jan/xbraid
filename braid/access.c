@@ -56,30 +56,24 @@ _braid_FAccess(braid_Core     core,
    {
       
       _braid_GetInterval(core, level, interval, &flo, &fhi, &ci);
-      printf("start for interval: %d flo: %d fhi: %d\n", interval, flo, fhi);
       /* Give access at F-points */
       if (flo <= fhi)
       {
-         printf("first getVector at index: %d\n", flo - 1);
          _braid_UGetVector(core, level, flo-1, &u);
       }
       for (fi = flo; fi <= fhi; fi++)
       {
-         printf("start second for fi: %d flo: %d fhi: %d\n", fi, flo, fhi);
-         printf("u transforms with one step from:\n");
          _braid_CoreFcn(core, getValue)(u->userVector);
 
          _braid_Step(core, level, fi, braid_ASCaller_FAccess, NULL, u);
          _braid_USetVector(core, level, fi, u, 0);
 
-         printf("at index: %d to the value:\n", fi);
          _braid_CoreFcn(core, getValue)(u->userVector);
 
          if (access_level >= 1)
          {
             _braid_AccessStatusInit( ta[fi-ilower], fi, rnorm, iter, level, nrefine, gupper,
                                      done, 0, braid_ASCaller_FAccess, u->basis, astatus);
-            printf("first access acesses:\n");
             _braid_CoreFcn(core, getValue)(u->userVector);
             _braid_AccessVector(core, astatus, u);
          }
@@ -101,14 +95,12 @@ _braid_FAccess(braid_Core     core,
       /* Give access at C-points */
       if ( ci > -1 )
       {
-         printf("first getVectorRef at: %d\n", ci);
          _braid_UGetVectorRef(core, level, ci, &u);
 
          if ( access_level >= 1 )
          {
             _braid_AccessStatusInit( ta[ci-ilower], ci, rnorm, iter, level, nrefine, gupper,
                                      done, 0, braid_ASCaller_FAccess, u->basis, astatus);
-            printf("second access accesses:\n");
             _braid_CoreFcn(core, getValue)(u->userVector);
             _braid_AccessVector(core, astatus, u);
          }
