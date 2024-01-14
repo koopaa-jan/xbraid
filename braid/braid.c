@@ -116,12 +116,20 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
       }
       else
       {
-         // adjusted
-         for (i = 0; i <= iupper - ilower; i++)
+         // my version adjusted
+         // for (i = 0; i <= iupper - ilower; i++)
+         // {
+         //    ta[i] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
+         //    printf("---my version ---myid: %d and ta[%d]: %f\n", myid, i, ta[i]);
+         // }
+
+         // original version
+         for (i = ilower; i <= iupper; i++)
          {
-            ta[i] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
-            //printf("ta[%d]: %f\n", i, ta[i]);
+            ta[i-ilower] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
+            printf("myid: %d and ta[%d]: %f\n", myid, i-ilower, ta[i-ilower]);
          }
+
       }
 
       /* Create a grid hierarchy */
@@ -131,18 +139,18 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
       _braid_InitGuess(core, 0);
 
       //setting solution vector for next iteration
-      if (transfer_vector != NULL) {
-         // printf("before setting sol vector:\n");
+      if (transfer_vector != NULL && myid == 0) {
+         printf("before setting sol vector:\n");
          // _braid_CoreFcn(core, getValue)(transfer_vector);
 
          _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
 
-      //    printf("after setting sol vector:\n");
+         printf("after setting sol vector:\n");
          
 
-      //   _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
+         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
       //   printf("test\n");
-      //   _braid_CoreFcn(core, getValue)(transfer_vector);
+         _braid_CoreFcn(core, getValue)(transfer_vector);
 
       //    printf("after updating sol vector\n");
       }
@@ -301,47 +309,43 @@ braid_Drive_Dyn(braid_Core  core)
 
       braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
 
+      printf("before barrier\n");
       MPI_Barrier(comm_world);
+      printf("after barrier\n");
+
 
       //here in the future looking for new processes and initializing program for new iteration
 
       //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
-      // interval_len / trange_per_ts gibt index vom letzten ts
-      //TODO look into recv_index
 
-      // printf("before get vector index: %d\n", sol_Vector_index);
+      //get last vector of the process which is responsible for it, which is the process with the highest id
+      braid_Int size;
+      MPI_Comm_size(comm_world, &size);
+      MPI_Status stat;
 
-      // _braid_Grid **grids = _braid_CoreElt(core, grids);
+      if (myid == size - 1) {
+         //last processor
+         printf("getting UGetLast of last processor\n");
+         _braid_UGetLast(core, &transfer_vector);
+         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
 
-      // braid_BaseVector *ua = _braid_GridElt(grids[0], ua);
+         // only send when there are more than one processes
+         if (myid != 0) {
+            printf("sending UGetLast of last processor with id %d is:\n", myid);
+            MPI_Send(&transfer_vector, sizeof(braid_BaseVector), MPI_BYTE, 0, 1, comm_world);
+         }
+      } else if (myid == 0) {
+         printf("receiving UGetLast of last processor:\n");
 
-      // braid_BaseVector ulast = _braid_GridElt(grids[0], ulast);
+         MPI_Recv(&transfer_vector, sizeof(braid_BaseVector), MPI_BYTE, size - 1, 1, comm_world, &stat);
+
+         printf("after receiving\n");
+         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+      }
+      
 
       
-      // if (ulast == NULL) {
-      //    printf("last c vector is:\n");
 
-      //    _braid_UGetVector(core, 0, sol_Vector_index, &transfer_vector);
-      //    _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-
-      // } else {
-      //    printf("the ulast vector value is:\n");
-      //    transfer_vector->userVector = ulast->userVector;
-      //    _braid_CoreFcn(core, getValue)(ulast->userVector);
-      // }
-
-      printf("UGetLast returns:\n");
-      _braid_UGetLast(core, &transfer_vector);
-      _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-
-      // for (size_t i = 0; i < 10; i++)
-      // {
-      //    if (ua[i]->userVector != NULL) {
-      //       printf("ua at index %ld is:", i);
-      //       _braid_CoreFcn(core, getValue)(ua[i]->userVector);
-      //       printf("\n");
-      //    }
-      // }
 
       ptr_offset_count++;
       sol_Vector_index *= 2;

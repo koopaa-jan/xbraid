@@ -68,7 +68,6 @@ _braid_GetBlockDistProc(braid_Int   npoints,
    {
       _braid_MapPeriodic(index, npoints);
    }
-   printf("inside of GetBlockDistProc npoints: %d nprocs: %d index: %d\n", npoints, nprocs, index);
 
    /* Compute processor number */
    if ((index < 0) || (index > (npoints-1)))
@@ -79,7 +78,6 @@ _braid_GetBlockDistProc(braid_Int   npoints,
    {
       quo = npoints/nprocs;
       rem = npoints%nprocs;
-      printf("quo: %d rem: %d\n", quo, rem);
 
       if (quo > 0)
       {

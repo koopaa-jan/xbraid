@@ -473,7 +473,7 @@ _braid_InitGuess(braid_Core  core,
          /* Only initialize the C-points on the finest grid */
          for (i = clower; i <= cupper; i += cfactor)
          {
-            printf("points that get initialized t: %f\n", ta[i-ilower]);
+            //printf("points that get initialized t: %f\n", ta[i-ilower]);
             _braid_BaseInit(core, app,  ta[i-ilower], &u);
             _braid_USetVectorRef(core, level, i, u);
          }
