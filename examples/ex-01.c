@@ -211,6 +211,22 @@ my_GetValue(braid_Vector u) {
     return 0.;
 }
 
+// int
+// my_Pack(braid_Vector u, void **ptr, size_t *size) {
+//     *ptr = malloc(sizeof(double));
+//     memcpy(*ptr, &u->value, sizeof(double));
+//     *size = sizeof(double);
+
+//     return 0;
+// }
+
+// int
+// my_Unpack(braid_Vector u, void *ptr, size_t size) {
+//     memcpy(&u->value, ptr, size);
+
+//     return 0;
+// }
+
 int
 my_BufSize(braid_App          app,
            int                *size_ptr,

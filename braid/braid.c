@@ -202,7 +202,7 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector tra
    //printf("before _braid_Drive_Dyn\n");
    /* Solve with MGRIT */
    _braid_Drive_Dyn(core, localtime);
-   //printf("after _braid_Drive_Dyn\n");
+   printf("after _braid_Drive_Dyn\n");
 
    //newDyn. warm restart turned of, so for every call grid gets initilized
    //_braid_CoreElt(core, warm_restart) = 1;
@@ -309,10 +309,11 @@ braid_Drive_Dyn(braid_Core  core)
 
       braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
 
-      printf("before barrier\n");
-      MPI_Barrier(comm_world);
-      printf("after barrier\n");
-
+      braid_Int err = MPI_Barrier(comm_world);
+      if (err != MPI_SUCCESS) {
+         printf("error in barrier++++++++++++++++++++++++++++++++++++++++\n");
+      }
+      printf("barrier\n");
 
       //here in the future looking for new processes and initializing program for new iteration
 
@@ -323,6 +324,17 @@ braid_Drive_Dyn(braid_Core  core)
       MPI_Comm_size(comm_world, &size);
       MPI_Status stat;
 
+      // allocating parameters for transfering solution vector
+      // getting size of solution vector
+      braid_BufferStatus bstatus = (braid_BufferStatus)core;
+      braid_Int sol_vec_size;
+      _braid_CoreFcn(core, bufsize)(app, &sol_vec_size, bstatus);
+
+      char *buffer = (char *)malloc(sol_vec_size);
+
+      printf("sol vector size: %d\n", sol_vec_size);
+
+
       if (myid == size - 1) {
          //last processor
          printf("getting UGetLast of last processor\n");
@@ -331,18 +343,37 @@ braid_Drive_Dyn(braid_Core  core)
 
          // only send when there are more than one processes
          if (myid != 0) {
-            printf("sending UGetLast of last processor with id %d is:\n", myid);
-            MPI_Send(&transfer_vector, sizeof(braid_BaseVector), MPI_BYTE, 0, 1, comm_world);
+
+            // serializing data of solution vector
+            _braid_CoreFcn(core, bufpack)(app, transfer_vector->userVector, buffer, bstatus);
+
+
+            printf("sending UGetLast of last processor with id %d:\n", myid);
+            braid_Int err_send = MPI_Send(buffer, sol_vec_size, MPI_BYTE, 0, 5, comm_world);
+
+            if (err_send != MPI_SUCCESS) {
+               printf("error in send++++++++++++++++++++++++++++++++++++++++\n");
+            }
          }
       } else if (myid == 0) {
          printf("receiving UGetLast of last processor:\n");
 
-         MPI_Recv(&transfer_vector, sizeof(braid_BaseVector), MPI_BYTE, size - 1, 1, comm_world, &stat);
+         braid_Int err_recv = MPI_Recv(buffer, sol_vec_size, MPI_BYTE, size - 1, 5, comm_world, &stat);
+
+         if (err_recv != MPI_SUCCESS) {
+            printf("error in recv++++++++++++++++++++++++++++++++++++++++\n");
+         }
+
+         // deserializing data of solution vector
+         _braid_CoreFcn(core, bufunpack)(app, buffer, &transfer_vector->userVector, bstatus);
+
 
          printf("after receiving\n");
          _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
       }
-      
+
+
+      free(buffer);
 
       
 
