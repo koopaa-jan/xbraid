@@ -37,7 +37,8 @@ BRAID_HEADERS =\
  util.h\
  braid.h\
  braid_status.h\
- braid_test.h
+ braid_test.h\
+ dmr.h
 
 BRAID_FILES =\
  access.c\
@@ -64,7 +65,8 @@ BRAID_FILES =\
  step.c\
  tape.c\
  util.c\
- uvector.c
+ uvector.c\
+ dmr.c
 
 ifeq ($(sequential),yes)
 	BRAID_HEADERS += mpistubs.h

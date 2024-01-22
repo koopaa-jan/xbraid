@@ -26,6 +26,7 @@
 
 #include "_braid.h"
 #include "util.h"
+#include "dmr.h"
 
 braid_Int _braid_error_flag = 0;
 FILE    *_braid_printfile  = NULL;
@@ -38,7 +39,7 @@ FILE    *_braid_printfile  = NULL;
  *--------------------------------------------------------------------------*/
 
 braid_Int
-braid_Drive_Dyn_Iterate(braid_Core  core, braid_Int ptr_offset, braid_Vector transfer_vector)
+braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
 {
    MPI_Comm             comm_world      = _braid_CoreElt(core, comm_world);
    braid_Int            myid            = _braid_CoreElt(core, myid_world);
@@ -298,16 +299,13 @@ braid_Drive_Dyn(braid_Core  core)
 
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
 
-      // calculate ptr offset for ilower and iupper
-      // if split in two iterations, first ilower = 0 iupper = 5, second ilower = 5 iupper = 10 e.g. for ex-01
-      braid_Int ptr_offset = (interval_len / trange_per_ts) * ptr_offset_count;
 
-      printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f ptr_offset: %d\n",
+      printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
        current_ts, current_ts + interval_len, interval_len / trange_per_ts,
-        (interval_len / trange_per_ts), ptr_offset);
+        (interval_len / trange_per_ts));
 
 
-      braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
+      braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
 
       braid_Int err = MPI_Barrier(comm_world);
       if (err != MPI_SUCCESS) {
@@ -375,8 +373,20 @@ braid_Drive_Dyn(braid_Core  core)
 
       free(buffer);
 
+      // TODO here free the used grid
+
       
 
+      // looking for new processes
+      MPI_Info info;
+      MPI_Info_create(&info);                                                                                                                  \
+      sprintf(str, "%d", 0);                                                                                                             \
+      MPI_Info_set(info, "mpi_num_procs_sub", str);                                                                                            \
+      sprintf(str, "%d", 1);                                                                                                             \
+      MPI_Info_set(info, "mpi_num_procs_add", str);
+
+      
+      
 
       ptr_offset_count++;
       sol_Vector_index *= 2;
@@ -392,65 +402,12 @@ braid_Drive_Dyn(braid_Core  core)
       _braid_CoreElt(core, gupper) = ((globaltstop - current_ts) / trange_per_ts);
 
 
-      // calculate ptr offset for ilower and iupper
-      braid_Int ptr_offset = (interval_len / trange_per_ts) * ptr_offset_count;
-
-      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f ptr_offset: %d\n",
+      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
        current_ts, globaltstop, (globaltstop - current_ts) / trange_per_ts,
-        ((globaltstop - current_ts) / trange_per_ts), ptr_offset);
+        ((globaltstop - current_ts) / trange_per_ts));
 
-      braid_Drive_Dyn_Iterate(core, ptr_offset, transfer_vector->userVector);
+      braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
 
-
-      // following outdated:
-
-      // get solution vector for research
-      // _braid_Grid **grid1 = _braid_GridElt(core, grids);
-      // braid_Int nlevels1 = _braid_GridElt(core, nlevels);
-
-      // for (int i = 0; i < nlevels1; i++) {
-
-      //    printf("level: %d\n", i);
-
-      //    braid_Int ilower1 = _braid_GridElt(grid1[i], ilower);
-      //    braid_Int iupper1 = _braid_GridElt(grid1[i], iupper);
-      //    braid_Int level1 = _braid_GridElt(grid1[i], level);
-      //    braid_Int clower1 = _braid_GridElt(grid1[i], clower);
-      //    braid_Int cupper1 = _braid_GridElt(grid1[i], cupper);
-      //    braid_Int gupper1 = _braid_GridElt(grid1[i], gupper);
-      //    braid_Int cfactor1 = _braid_GridElt(grid1[i], cfactor);
-      //    braid_Int ncpoints1 = _braid_GridElt(grid1[i], ncpoints);
-      //    braid_Real *ta1 = _braid_GridElt(grid1[i], ta);
-      //    braid_BaseVector *ua1 = _braid_GridElt(grid1[i], ua);
-      //    braid_BaseVector *va1 = _braid_GridElt(grid1[i], va);
-      //    braid_BaseVector *fa1 = _braid_GridElt(grid1[i], fa);
-
-
-
-      //    printf("ilower: %d iupper: %d level: %d clower: %d cupper: %d gupper: %d cfactor: %d ncpoints: %d\n",
-      //    ilower1, iupper1, level1, clower1, cupper1, gupper1, cfactor1, ncpoints1);
-
-      //    for (int j = 0; j < gupper1 + 2; j++) {
-      //       printf("ta[%d]: %f\n", j, ta1[j]);
-      //    }
-      //    if (i == 0) {
-      //    for (int j = 0; j < ncpoints1; j++) {
-      //       printf("printing ua:\n");
-      //       _braid_CoreFcn(core, clone)(app, ua1[j]->userVector, &(transfer_vector->userVector));
-      //       _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-      //    }
-      //    }
-      // }
-
-      // printf("\n _braid_UGetVectorRef level 0 index = ntime gives:\n");
-      // _braid_UGetVectorRef(core, 0, ntime, &transfer_vector);
-      // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-
-      // if simulations is split into at least two iterations, print the solution vector at the end again
-      // if (transfer_vector->userVector != NULL) {
-      //    printf("\n level 0 index = ntime gives:\n");
-      //    _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
-      // }
    }
 
    return _braid_error_flag;

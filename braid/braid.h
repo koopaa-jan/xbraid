@@ -601,7 +601,6 @@ braid_Destroy_Dyn(braid_Core core);
 */
 braid_Int
 braid_Drive_Dyn_Iterate(braid_Core  core,     /**< braid_Core (_braid_Core) struct*/
-                        braid_Int ptr_offset,
                         braid_Vector solVector
             );
 
