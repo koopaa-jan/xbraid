@@ -101,9 +101,6 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
    {
       /* Create fine grid */
       _braid_GetDistribution(core, &ilower, &iupper);
-      // adjust ptrs
-      //ilower += ptr_offset;
-      //iupper += ptr_offset;
 
       _braid_GridInit(core, 0, ilower, iupper, &grid);
       printf("after GridInit ilower: %d iupper: %d\n", ilower, iupper);
@@ -284,11 +281,8 @@ braid_Drive_Dyn(braid_Core  core)
    transfer_vector->bar        = NULL;
    transfer_vector->basis      = NULL;
 
-   // helps to find the index if the solution vector for updating after each iteration
-   braid_Int sol_Vector_index = interval_len / trange_per_ts;
 
    braid_Real current_ts = 0.0;
-   braid_Int ptr_offset_count = 0;
    // gupper is global size of fine grid
    _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts);
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
@@ -313,8 +307,6 @@ braid_Drive_Dyn(braid_Core  core)
       }
       printf("barrier\n");
 
-      //here in the future looking for new processes and initializing program for new iteration
-
       //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
 
       //get last vector of the process which is responsible for it, which is the process with the highest id
@@ -330,9 +322,6 @@ braid_Drive_Dyn(braid_Core  core)
 
       char *buffer = (char *)malloc(sol_vec_size);
 
-      printf("sol vector size: %d\n", sol_vec_size);
-
-
       if (myid == size - 1) {
          //last processor
          printf("getting UGetLast of last processor\n");
@@ -344,52 +333,63 @@ braid_Drive_Dyn(braid_Core  core)
 
             // serializing data of solution vector
             _braid_CoreFcn(core, bufpack)(app, transfer_vector->userVector, buffer, bstatus);
-
-
-            printf("sending UGetLast of last processor with id %d:\n", myid);
-            braid_Int err_send = MPI_Send(buffer, sol_vec_size, MPI_BYTE, 0, 5, comm_world);
-
-            if (err_send != MPI_SUCCESS) {
-               printf("error in send++++++++++++++++++++++++++++++++++++++++\n");
-            }
          }
-      } else if (myid == 0) {
-         printf("receiving UGetLast of last processor:\n");
+      }
+      
+      if (size > 1) {
+         MPI_Bcast(buffer, sol_vec_size, MPI_BYTE, size - 1, comm_world);
+         
+         if (myid != size - 1) {
+            // deserializing data of solution vector
+            _braid_CoreFcn(core, bufunpack)(app, buffer, &transfer_vector->userVector, bstatus);
 
-         braid_Int err_recv = MPI_Recv(buffer, sol_vec_size, MPI_BYTE, size - 1, 5, comm_world, &stat);
-
-         if (err_recv != MPI_SUCCESS) {
-            printf("error in recv++++++++++++++++++++++++++++++++++++++++\n");
+            printf("after receiving\n");
+            _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
          }
-
-         // deserializing data of solution vector
-         _braid_CoreFcn(core, bufunpack)(app, buffer, &transfer_vector->userVector, bstatus);
-
-
-         printf("after receiving\n");
-         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
       }
 
 
       free(buffer);
 
       // TODO here free the used grid
+      // braid_Int nlevels = _braid_CoreElt(core, nlevels);
+      // _braid_Grid **grids = _braid_CoreElt(core, grids);
+
+      // for (int level = 0; level < nlevels; level++)
+      // {
+      //    _braid_GridDestroy(core, grids[level]);
+      // }
+
+      // _braid_TFree(grids);
 
       
 
       // looking for new processes
+
+      printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
       MPI_Info info;
-      MPI_Info_create(&info);                                                                                                                  \
-      sprintf(str, "%d", 0);                                                                                                             \
-      MPI_Info_set(info, "mpi_num_procs_sub", str);                                                                                            \
-      sprintf(str, "%d", 1);                                                                                                             \
+      MPI_Info_create(&info);
+      sprintf(str, "%d", 0);
+      MPI_Info_set(info, "mpi_num_procs_sub", str);
+      sprintf(str, "%d", 1);
       MPI_Info_set(info, "mpi_num_procs_add", str);
 
-      
-      
+      DMR_Set_parameters(info);
 
-      ptr_offset_count++;
-      sol_Vector_index *= 2;
+      DMR_RECONFIGURATION();
+
+      comm_world = DMR_INTERCOMM;
+      myid = DMR_comm_rank;
+
+      _braid_CoreElt(core, comm_world)      = comm_world;
+      _braid_CoreElt(core, comm)            = comm_world;
+      _braid_CoreElt(core, myid_world)      = myid;
+      _braid_CoreElt(core, myid)            = myid;
+
+      MPI_Comm_size(comm_world, &size);
+      printf("-+-+-+--+--+-+-++--+---++- my new id is: %d new size after rearrange is: %d ++-+-+-+-+--+-+-+-+\n", myid, size);
+
+
    }
    if (current_ts < globaltstop) {
       // compute the remainding time until tstop
@@ -655,12 +655,7 @@ braid_Destroy_Dyn(braid_Core core) {
       _braid_TFree(grids);
 
       //newDyn
-      MPI_Comm             comm_world   = _braid_CoreElt(core, comm_world);
-      MPI_Group            world_group  = _braid_CoreElt(core, world_group);
-      MPI_Session          session      = _braid_CoreElt(core, session);
-      MPI_Group_free(&world_group);
-      MPI_Comm_disconnect(&comm_world);
-      MPI_Session_finalize(&session);
+      DMR_FINALIZE0();
 
       _braid_TFree(core);
 
@@ -749,35 +744,21 @@ braid_Init_Dyn(const char comm_world_pset [],
    MPI_Comm comm_world;
    MPI_Comm comm;
 
-   //newDyn
-
-
-
-   MPI_Session session = MPI_SESSION_NULL;
-   MPI_Group world_group = MPI_GROUP_NULL;
-   comm_world = MPI_COMM_NULL;
-
-   MPI_Session_init(MPI_INFO_NULL, MPI_ERRORS_ARE_FATAL, &session);
-
-   MPI_Group_from_session_pset(session, comm_world_pset, &world_group);
-
-   MPI_Comm_create_from_group(world_group, "tag.parprog", MPI_INFO_NULL, MPI_ERRORS_ARE_FATAL, &comm_world);
-   comm = comm_world;
-
    // newDyn
+   DMR_INIT();
 
+   comm_world = DMR_INTERCOMM;
+   comm = DMR_INTERCOMM;
 
-   MPI_Comm_rank(comm_world, &myid_world);
-   MPI_Comm_rank(comm, &myid);
-   MPI_Comm_size(comm_world, &world_size);
+   myid_world = DMR_comm_rank;
+   myid = DMR_comm_rank;
+   world_size = DMR_comm_size;
 
    printf("Size:%d and rank:%d\n", world_size, myid_world);
 
    core = _braid_CTAlloc(_braid_Core, 1);
 
    //newDyn
-   _braid_CoreElt(core, session)         = session;
-   _braid_CoreElt(core, world_group)     = world_group;
    _braid_CoreElt(core, interval_len)    = interval_len;
    _braid_CoreElt(core, getValue)        = getValue;
 

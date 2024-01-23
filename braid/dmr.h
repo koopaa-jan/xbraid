@@ -1,3 +1,6 @@
+#ifndef dmr_HEADER
+#define dmr_HEADER
+
 #include <stdio.h>
 #include <stdlib.h>
 #include "mpi.h"
@@ -10,36 +13,41 @@
 
 #define STR_SIZE 2048 /**< @brief Standard size for strings. **/
 
-char _keys[][MPI_MAX_INFO_KEY] = {"mpi_dyn", "mpi_primary", "inter_pset", "mpi_included", "dmr://finalize"};
-char *keys[5] = {_keys[0], _keys[1], _keys[2], _keys[3], _keys[4]};
-MPI_Info info = MPI_INFO_NULL;
-char main_pset[MPI_MAX_PSET_NAME_LEN];
-char delta_pset[MPI_MAX_PSET_NAME_LEN];
-char old_main_pset[MPI_MAX_PSET_NAME_LEN];
-char final_pset[MPI_MAX_PSET_NAME_LEN];
-char mpi_world_pset[] = "mpi://WORLD";
-char boolean_string[6];
-int flag;
-bool dynamic_proc = false;
-bool primary_proc = false;
-char **input_psets = NULL, **output_psets = NULL, **q_output_psets = NULL;
-char str[MPI_MAX_PSET_NAME_LEN];
-MPI_Group wgroup = MPI_GROUP_NULL;
-int noutput = 0, noutput2 = 0, op_req = MPI_PSETOP_NULL, op_query = MPI_PSETOP_NULL;
+extern char _keys[][MPI_MAX_INFO_KEY];
+extern char *keys[5];
+extern MPI_Info info;
+extern char main_pset[MPI_MAX_PSET_NAME_LEN];
+extern char delta_pset[MPI_MAX_PSET_NAME_LEN];
+extern char old_main_pset[MPI_MAX_PSET_NAME_LEN];
+extern char final_pset[MPI_MAX_PSET_NAME_LEN];
+extern char mpi_world_pset[];
+extern char boolean_string[6];
+extern int flag;
+extern bool dynamic_proc;
+extern bool primary_proc;
+extern char **input_psets;
+extern char **output_psets;
+extern char **q_output_psets;
+extern char str[MPI_MAX_PSET_NAME_LEN];
+extern MPI_Group wgroup;
+extern int noutput;
+extern int noutput2;
+extern int op_req;
+extern int op_query;
 
-int DMR_it, DMR_STEPS;
-MPI_Comm DMR_INTERCOMM = MPI_COMM_NULL;
-MPI_Comm DMR_COMM_OLD = MPI_COMM_NULL;
-MPI_Comm DMR_COMM_NEW = MPI_COMM_NULL;
-int DMR_comm_rank, DMR_comm_size, DMR_comm_prev_size;
-MPI_Session DMR_session = MPI_SESSION_NULL;
-MPI_Request psetop_req = MPI_REQUEST_NULL;
-int DMR_min, DMR_max, DMR_pref;
+extern MPI_Comm DMR_INTERCOMM;
+extern MPI_Comm DMR_COMM_OLD;
+extern MPI_Comm DMR_COMM_NEW;
+extern int DMR_comm_rank;
+extern int DMR_comm_size;
+extern int DMR_comm_prev_size;
+extern MPI_Session DMR_session;
+extern MPI_Request psetop_req;
 
 #define GET_MACRO(_0, _1, NAME, ...) NAME
 #define DMR_FINALIZE(...) GET_MACRO(_0, ##__VA_ARGS__, DMR_FINALIZE1, DMR_FINALIZE0)(__VA_ARGS__)
 
-#define DMR_INIT(steps, FUNC_INIT, EXPAND_RECV)                                                                                    \
+#define DMR_INIT()                                                                                                                 \
     {                                                                                                                              \
         MPI_Session_init(MPI_INFO_NULL, MPI_ERRORS_ARE_FATAL, &DMR_session);                                                       \
         strcpy(main_pset, "mpi://WORLD");                                                                                          \
@@ -88,29 +96,12 @@ int DMR_min, DMR_max, DMR_pref;
         DMR_COMM_NEW = DMR_INTERCOMM;                                                                                              \
         MPI_Comm_rank(DMR_INTERCOMM, &DMR_comm_rank);                                                                              \
         MPI_Comm_size(DMR_INTERCOMM, &DMR_comm_size);                                                                              \
-        /*printf("Before INIT [%d/%d] %d: %s(%s,%d)\n", DMR_comm_rank, DMR_comm_size, getpid(), __FILE__, __func__, __LINE__);  */\
-        if (!dynamic_proc)                                                                                                         \
-        {                                                                                                                          \
-            DMR_it = 0;                                                                                                            \
-            FUNC_INIT;                                                                                                             \
-        }                                                                                                                          \
-        else                                                                                                                       \
-        {                                                                                                                          \
-            /*FUNC_INIT;*/                                                                                                             \
-            /*printf("Before Bcast [%d/%d] %d: %s(%s,%d)\n", DMR_comm_rank, DMR_comm_size, getpid(), __FILE__, __func__, __LINE__); */ \
-            MPI_Bcast(&DMR_it, 1, MPI_INT, 0, DMR_INTERCOMM);                                                                      \
-            DMR_it++;                                                                                                              \
-            EXPAND_RECV;                                                                                                           \
-        }                                                                                                                          \
         MPI_Group_free(&wgroup);                                                                                                   \
         strcpy(final_pset, main_pset);                                                                                             \
-        DMR_STEPS = steps;                                                                                                         \
     }
 
-#define DMR_RECONFIGURATION(EXPAND_SEND, EXPAND_RECV, SHRINK_SEND, SHRINK_RECV)                                                                          \
+#define DMR_RECONFIGURATION()                                                                                                                            \
     {                                                                                                                                                    \
-        if (DMR_it < DMR_STEPS)                                                                                                                          \
-        {                                                                                                                                                \
             noutput = 0;                                                                                                                                 \
             if (primary_proc && psetop_req == MPI_REQUEST_NULL)                                                                                          \
             {                                                                                                                                            \
@@ -161,29 +152,7 @@ int DMR_min, DMR_max, DMR_pref;
                     MPI_Group_free(&wgroup);                                                                                                             \
                     MPI_Comm_rank(DMR_INTERCOMM, &DMR_comm_rank);                                                                                        \
                     MPI_Comm_size(DMR_INTERCOMM, &DMR_comm_size);                                                                                        \
-                    /*printf("Before Bcast [%d/%d] %d: %s(%s,%d)\n", DMR_comm_rank, DMR_comm_size, getpid(), __FILE__, __func__, __LINE__);          */  \
-                    MPI_Bcast(&DMR_it, 1, MPI_INT, 0, DMR_INTERCOMM);                                                                                    \
                     DMR_COMM_NEW = DMR_INTERCOMM;                                                                                                        \
-                }                                                                                                                                        \
-                /* Do data reditribution with DMR_COMM_OLD and DMR_COMM_NEW defined */                                                                   \
-                /*printf("Before Data Redistribution [%d/%d] %d: %s(%s,%d)\n", DMR_comm_rank, DMR_comm_size, getpid(), __FILE__, __func__, __LINE__); */ \
-                /* Expansion */                                                                                                                          \
-                if (0 != strcmp("", q_output_psets[1]))                                                                                                  \
-                {                                                                                                                                        \
-                    EXPAND_SEND;                                                                                                                         \
-                }                                                                                                                                        \
-                /* Shrink*/                                                                                                                              \
-                if (0 != strcmp("", q_output_psets[0]))                                                                                                  \
-                {                                                                                                                                        \
-                    /* Staying*/                                                                                                                         \
-                    if (0 != strcmp(boolean_string, "False"))                                                                                            \
-                    {                                                                                                                                    \
-                        SHRINK_RECV;                                                                                                                     \
-                    }                                                                                                                                    \
-                    else                                                                                                                                 \
-                    {                                                                                                                                    \
-                        SHRINK_SEND;                                                                                                                     \
-                    }                                                                                                                                    \
                 }                                                                                                                                        \
                 free_string_array(q_output_psets, noutput2);                                                                                             \
                 /* Finalize PSetOp*/                                                                                                                     \
@@ -198,7 +167,6 @@ int DMR_min, DMR_max, DMR_pref;
                     break;                                                                                                                               \
                 }                                                                                                                                        \
             }                                                                                                                                            \
-        }                                                                                                                                                \
     }
 
 #define DMR_FINALIZE1(FUNC_FINALIZE)                                                                                           \
@@ -286,19 +254,7 @@ int DMR_min, DMR_max, DMR_pref;
         MPI_Session_finalize(&DMR_session);                                                                                    \
     }
 
-void free_string_array(char **array, int size)
-{
-    int i;
-    if (0 == size)
-    {
-        return;
-    }
-    for (i = 0; i < size; i++)
-    {
-        free(array[i]);
-    }
-    free(array);
-}
+void free_string_array(char **array, int size);
 
 int DMR_Reconfiguration(char *argv[], MPI_Comm *DMR_INTERCOMM, int min, int max, int step, int pref);
 void DMR_Send_expand(double *data, int size, MPI_Comm DMR_INTERCOM);
@@ -306,3 +262,5 @@ void DMR_Recv_expand(double **data, int *size, MPI_Comm DMR_INTERCOM);
 void DMR_Send_shrink(double *data, int size, MPI_Comm DMR_INTERCOM);
 void DMR_Recv_shrink(double **data, int *size, MPI_Comm DMR_INTERCOM);
 void DMR_Set_parameters(MPI_Info mpi_info);
+
+#endif

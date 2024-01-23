@@ -257,8 +257,6 @@ typedef struct
 typedef struct _braid_Core_struct
 {
    //newDyn
-   MPI_Session            session;
-   MPI_Group              world_group;
    MPI_Comm               comm_world;
    braid_Real             interval_len;
    braid_PtFcnGetValue    getValue;
