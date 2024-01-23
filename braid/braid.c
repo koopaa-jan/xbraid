@@ -39,6 +39,19 @@ FILE    *_braid_printfile  = NULL;
  *--------------------------------------------------------------------------*/
 
 braid_Int
+braid_Update_Dyn_Procs(braid_Int *iteration, MPI_Comm world_comm)
+{
+   // sending counter of iteration from first process to all other including the dynamically added process
+   // so they get the knowledge of how far the algorithm is so they can calculate their parameters correctly
+   MPI_Bcast(iteration, 1, MPI_INT, 0, world_comm);
+
+   return _braid_error_flag;
+}
+
+/*--------------------------------------------------------------------------
+ *--------------------------------------------------------------------------*/
+
+braid_Int
 braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
 {
    MPI_Comm             comm_world      = _braid_CoreElt(core, comm_world);
@@ -282,17 +295,42 @@ braid_Drive_Dyn(braid_Core  core)
    transfer_vector->basis      = NULL;
 
 
-   braid_Real current_ts = 0.0;
+   braid_Real current_ts = globaltstart;
    // gupper is global size of fine grid
    _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts);
+
+
+   // counts the iteration
+   braid_Int iteration = 0;
+   
+
+   //if you are a dynamically added process, get iteration information from other process
+   // MPI_Info info;
+   // MPI_Info_create(&info);
+   // DMR_Set_parameters(info);
+
+   MPI_Session_get_pset_info(DMR_session, main_pset, &info);
+   MPI_Info_get(info, "mpi_dyn", 6, boolean_string, &flag);
+   if (flag && 0 == strcmp(boolean_string, "True")) {
+      printf("I WAS ADDED DYNAMICALLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! with rank: %d\n", myid);
+      braid_Update_Dyn_Procs(&iteration, comm_world);
+
+      current_ts = globaltstart + (interval_len * iteration);
+   } else {
+      printf("id: %d was not added dynamically!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", myid);
+   }
+
+   //MPI_Info_free(&info);
+
+
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
-   for (current_ts = globaltstart; current_ts < globaltstop - interval_len; current_ts += interval_len) {
+   for (; current_ts < globaltstop - interval_len; current_ts += interval_len) {
+      ++iteration;
       //set parameters
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = current_ts + interval_len;
 
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
-
 
       printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
        current_ts, current_ts + interval_len, interval_len / trange_per_ts,
@@ -367,16 +405,18 @@ braid_Drive_Dyn(braid_Core  core)
       // looking for new processes
 
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
-      MPI_Info info;
-      MPI_Info_create(&info);
+      // MPI_Info info;
+      // MPI_Info_create(&info);
       sprintf(str, "%d", 0);
       MPI_Info_set(info, "mpi_num_procs_sub", str);
       sprintf(str, "%d", 1);
       MPI_Info_set(info, "mpi_num_procs_add", str);
 
-      DMR_Set_parameters(info);
+      //DMR_Set_parameters(info);
 
       DMR_RECONFIGURATION();
+
+      // MPI_Info_free(&info);
 
       comm_world = DMR_INTERCOMM;
       myid = DMR_comm_rank;
@@ -389,7 +429,7 @@ braid_Drive_Dyn(braid_Core  core)
       MPI_Comm_size(comm_world, &size);
       printf("-+-+-+--+--+-+-++--+---++- my new id is: %d new size after rearrange is: %d ++-+-+-+-+--+-+-+-+\n", myid, size);
 
-
+      braid_Update_Dyn_Procs(&iteration, comm_world);
    }
    if (current_ts < globaltstop) {
       // compute the remainding time until tstop
