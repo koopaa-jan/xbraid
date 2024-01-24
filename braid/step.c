@@ -150,14 +150,12 @@ _braid_Step(braid_Core         core,
 
       if (level == 0)
       {
-         //printf("step 1\n");
          _braid_BaseStep(core, app,  ustop, NULL, u, level, status);
       }     
       else
       {
          if ( _braid_CoreElt(core, residual) == NULL )
          {
-            //printf("step 2\n");
             _braid_BaseStep(core, app,  ustop, NULL, u, level, status);
             if(fa[ii] != NULL)
             {
@@ -166,7 +164,6 @@ _braid_Step(braid_Core         core,
          }
          else
          {
-            //printf("step 3\n");
             _braid_BaseStep(core, app,  ustop, fa[ii], u, level, status);
          }
       }

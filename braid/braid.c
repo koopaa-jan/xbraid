@@ -39,11 +39,11 @@ FILE    *_braid_printfile  = NULL;
  *--------------------------------------------------------------------------*/
 
 braid_Int
-braid_Update_Dyn_Procs(braid_Int *iteration, MPI_Comm world_comm)
+braid_Update_Dyn_Procs(braid_Int *iteration, MPI_Comm comm_world)
 {
    // sending counter of iteration from first process to all other including the dynamically added process
    // so they get the knowledge of how far the algorithm is so they can calculate their parameters correctly
-   MPI_Bcast(iteration, 1, MPI_INT, 0, world_comm);
+   MPI_Bcast(iteration, 1, MPI_INT, 0, comm_world);
 
    return _braid_error_flag;
 }
@@ -116,7 +116,6 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
       _braid_GetDistribution(core, &ilower, &iupper);
 
       _braid_GridInit(core, 0, ilower, iupper, &grid);
-      printf("after GridInit ilower: %d iupper: %d\n", ilower, iupper);
 
       /* Set t values */
       ta = _braid_GridElt(grid, ta);
@@ -127,20 +126,11 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
       }
       else
       {
-         // my version adjusted
-         // for (i = 0; i <= iupper - ilower; i++)
-         // {
-         //    ta[i] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
-         //    printf("---my version ---myid: %d and ta[%d]: %f\n", myid, i, ta[i]);
-         // }
-
-         // original version
          for (i = ilower; i <= iupper; i++)
          {
             ta[i-ilower] = tstart + (((braid_Real)i)/ntime)*(tstop-tstart);
             printf("myid: %d and ta[%d]: %f\n", myid, i-ilower, ta[i-ilower]);
          }
-
       }
 
       /* Create a grid hierarchy */
@@ -152,18 +142,14 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
       //setting solution vector for next iteration
       if (transfer_vector != NULL && myid == 0) {
          printf("before setting sol vector:\n");
-         // _braid_CoreFcn(core, getValue)(transfer_vector);
-
-         _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
-
-         printf("after setting sol vector:\n");
-         
-
-         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
-      //   printf("test\n");
          _braid_CoreFcn(core, getValue)(transfer_vector);
 
-      //    printf("after updating sol vector\n");
+         _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);         
+
+         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
+         _braid_CoreFcn(core, getValue)(transfer_vector);
+
+         printf("after updating sol vector\n");
       }
 
       /* Let the users sync after initialization */
@@ -210,13 +196,8 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
    /* Reset from previous calls to braid_drive() */
    _braid_CoreElt(core, done) = 0;
 
-   //printf("before _braid_Drive_Dyn\n");
    /* Solve with MGRIT */
-   _braid_Drive_Dyn(core, localtime);
-   printf("after _braid_Drive_Dyn\n");
-
-   //newDyn. warm restart turned of, so for every call grid gets initilized
-   //_braid_CoreElt(core, warm_restart) = 1;
+   _braid_Drive(core, localtime);
 
    /* Stop timer */
    localtime = _braid_MPI_Wtime(core, 1) - localtime;
@@ -252,26 +233,18 @@ braid_Drive_Dyn(braid_Core  core)
    braid_Int            ntime           = _braid_CoreElt(core, ntime);
    //newDyn
    braid_Real           interval_len    = _braid_CoreElt(core, interval_len);
-   braid_Int            warm_restart    = _braid_CoreElt(core, warm_restart);
-   braid_Int            print_level     = _braid_CoreElt(core, print_level);
-   braid_App            app             = _braid_CoreElt(core, app);
-   braid_Int            obj_only        = _braid_CoreElt(core, obj_only);
-   braid_Int            adjoint         = _braid_CoreElt(core, adjoint);
-   braid_Int            delta           = _braid_CoreElt(core, delta_correct);
-   braid_SyncStatus     sstatus         = (braid_SyncStatus)core;
 
-   braid_Int      ilower, iupper, i;
-   braid_Real    *ta;
-   _braid_Grid   *grid;
-   braid_Real     localtime, globaltime;
-   braid_Real     timer_drive_init;
+   braid_App            app             = _braid_CoreElt(core, app);
 
    braid_Real globaltstart = tstart;
    braid_Real globaltstop = tstop;
    braid_Real globalinterval = globaltstop - globaltstart;
 
+   // size of current communicator
+   braid_Int size;
 
-   //making sure interval_len is a valid timestemp in globaltstop
+
+   //making sure interval_len is a valid timestemp
    braid_Real trange_per_ts = globalinterval / ntime;
 
    if (interval_len <= tstart || interval_len > tstop) {
@@ -294,39 +267,18 @@ braid_Drive_Dyn(braid_Core  core)
    transfer_vector->bar        = NULL;
    transfer_vector->basis      = NULL;
 
-
+   // counts at which time step the program currently is
    braid_Real current_ts = globaltstart;
+
    // gupper is global size of fine grid
    _braid_CoreElt(core, gupper) = (interval_len / trange_per_ts);
 
-
    // counts the iteration
    braid_Int iteration = 0;
-   
 
-   //if you are a dynamically added process, get iteration information from other process
-   // MPI_Info info;
-   // MPI_Info_create(&info);
-   // DMR_Set_parameters(info);
-
-   // MPI_Session_get_pset_info(DMR_session, main_pset, &info);
-   // printf("dmr main_pset: %s\n", main_pset);
-   // MPI_Info_get(info, "mpi_dyn", 6, boolean_string, &flag);
-   // if (flag && 0 == strcmp(boolean_string, "True")) {
-   //    printf("process with rank: %d was added dynamically----------------------------------------------\n", myid);
-   //    braid_Update_Dyn_Procs(&iteration, comm_world);
-
-   //    current_ts = globaltstart + (interval_len * iteration);
-   // } else {
-   //    printf("process with rank: %d was not added dynamically++++++++++++++++++++++++++++++++++++++++++++   \n", myid);
-   // }
-   // printf("dmr boolean: %s\n", boolean_string);
-
-   //MPI_Info_free(&info);
-
+   // update new processes with the current iteration counter
    braid_Update_Dyn_Procs(&iteration, comm_world);
    current_ts = globaltstart + (interval_len * iteration);
-   printf("iteration got set\n");
 
 
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
@@ -335,7 +287,6 @@ braid_Drive_Dyn(braid_Core  core)
       //set parameters
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = current_ts + interval_len;
-
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
 
       printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
@@ -347,14 +298,12 @@ braid_Drive_Dyn(braid_Core  core)
 
       MPI_Barrier(comm_world);
 
-      //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
-
+      //get solution Vector of previous run, store in transfer_vector and set as start vector in braid_Drive_Dyn_Iterate
       //get last vector of the process which is responsible for it, which is the process with the highest id
-      braid_Int size;
       MPI_Comm_size(comm_world, &size);
 
       // allocating parameters for transfering solution vector
-      // getting size of solution vector
+      // and getting size of solution vector
       braid_BufferStatus bstatus = (braid_BufferStatus)core;
       braid_Int sol_vec_size;
       _braid_CoreFcn(core, bufsize)(app, &sol_vec_size, bstatus);
@@ -362,7 +311,7 @@ braid_Drive_Dyn(braid_Core  core)
       char *buffer = (char *)malloc(sol_vec_size);
 
       if (myid == size - 1) {
-         //last processor
+         //last processor gets solution vector
          printf("getting UGetLast of last processor\n");
          _braid_UGetLast(core, &transfer_vector);
          _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
@@ -376,6 +325,7 @@ braid_Drive_Dyn(braid_Core  core)
       }
       
       if (size > 1) {
+         // broadcasting solution vector, so every process has a copy of it
          MPI_Bcast(buffer, sol_vec_size, MPI_BYTE, size - 1, comm_world);
          
          if (myid != size - 1) {
@@ -406,19 +356,23 @@ braid_Drive_Dyn(braid_Core  core)
       // changing amount of processes
 
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
-      MPI_Info info1;
-      MPI_Info_create(&info1);
-      sprintf(str, "%d", 1);
-      MPI_Info_set(info1, "mpi_num_procs_sub", str);
+      //MPI_Info info1;
+      MPI_Info_create(&info);
       sprintf(str, "%d", 0);
-      MPI_Info_set(info1, "mpi_num_procs_add", str);
+      MPI_Info_set(info, "mpi_num_procs_sub", str);
+      sprintf(str, "%d", 1);
+      MPI_Info_set(info, "mpi_num_procs_add", str);
 
-      DMR_Set_parameters(info1);
+      //DMR_Set_parameters(info);
 
       DMR_RECONFIGURATION();
 
-      //MPI_Info_free(&info1);
+      //MPI_Info_free(&info);
 
+      //update new processes
+      braid_Update_Dyn_Procs(&iteration, DMR_INTERCOMM);
+
+      // updating parameters
       comm_world = DMR_INTERCOMM;
       myid = DMR_comm_rank;
 
@@ -427,10 +381,9 @@ braid_Drive_Dyn(braid_Core  core)
       _braid_CoreElt(core, myid_world)      = myid;
       _braid_CoreElt(core, myid)            = myid;
 
+
       MPI_Comm_size(comm_world, &size);
       printf("-+-+-+--+--+-+-++--+---++- my new id is: %d new size after rearrange is: %d ++-+-+-+-+--+-+-+-+\n", myid, size);
-
-      braid_Update_Dyn_Procs(&iteration, comm_world);
    }
    if (current_ts < globaltstop) {
       // compute the remainding time until tstop
@@ -443,9 +396,9 @@ braid_Drive_Dyn(braid_Core  core)
       _braid_CoreElt(core, gupper) = ((globaltstop - current_ts) / trange_per_ts);
 
 
-      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
+      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f myid: %d\n",
        current_ts, globaltstop, (globaltstop - current_ts) / trange_per_ts,
-        ((globaltstop - current_ts) / trange_per_ts));
+        ((globaltstop - current_ts) / trange_per_ts), myid);
 
       braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
 

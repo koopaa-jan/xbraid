@@ -95,8 +95,6 @@ my_Step(braid_App        app,
     /* Use backward Euler to propagate solution */
     (u->value) = 1./(1. + tstop-tstart)*(u->value);
 
-    //printf("step+++++++++++++++++++++++++++++++++++++++---------------------\n");
-
     return 0;
 }
 
@@ -117,8 +115,6 @@ my_Init(braid_App     app,
         (u->value) = 0.456;
     }
     *u_ptr = u;
-
-    //printf("init---------------------t: %f\n", t);
 
     return 0;
 }
@@ -200,8 +196,6 @@ my_Access(braid_App          app,
         printf("value of accessed vector u: %f\n", u->value);
     }
 
-    //printf("access at index: %d iteration: % d---------------------------------------\n", index, iteration);
-
     return 0;
 }
 
@@ -210,22 +204,6 @@ my_GetValue(braid_Vector u) {
     printf("value of u: %f\n", u->value);
     return 0.;
 }
-
-// int
-// my_Pack(braid_Vector u, void **ptr, size_t *size) {
-//     *ptr = malloc(sizeof(double));
-//     memcpy(*ptr, &u->value, sizeof(double));
-//     *size = sizeof(double);
-
-//     return 0;
-// }
-
-// int
-// my_Unpack(braid_Vector u, void *ptr, size_t size) {
-//     memcpy(&u->value, ptr, size);
-
-//     return 0;
-// }
 
 int
 my_BufSize(braid_App          app,

@@ -80,7 +80,6 @@ _braid_FAccess(braid_Core     core,
             _braid_ObjectiveStatusInit(ta[fi-ilower], fi, iter, level, nrefine, gupper, ostatus);
             _braid_AddToObjective(core, u, ostatus);
          }
-         //printf("end of second loop\n");
       }
       if (flo <= fhi)
       {

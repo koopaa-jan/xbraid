@@ -1067,13 +1067,6 @@ _braid_CopyFineToCoarse(braid_Core  core);
 /* drive.c */
 
 /**
- * Main loop for dynamic MGRIT
- */
-braid_Int
-_braid_Drive_Dyn(braid_Core core, 
-             braid_Real localtime);
-
-/**
  * Main loop for MGRIT
  */
 braid_Int
