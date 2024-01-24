@@ -309,18 +309,24 @@ braid_Drive_Dyn(braid_Core  core)
    // MPI_Info_create(&info);
    // DMR_Set_parameters(info);
 
-   MPI_Session_get_pset_info(DMR_session, main_pset, &info);
-   MPI_Info_get(info, "mpi_dyn", 6, boolean_string, &flag);
-   if (flag && 0 == strcmp(boolean_string, "True")) {
-      printf("I WAS ADDED DYNAMICALLY!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! with rank: %d\n", myid);
-      braid_Update_Dyn_Procs(&iteration, comm_world);
+   // MPI_Session_get_pset_info(DMR_session, main_pset, &info);
+   // printf("dmr main_pset: %s\n", main_pset);
+   // MPI_Info_get(info, "mpi_dyn", 6, boolean_string, &flag);
+   // if (flag && 0 == strcmp(boolean_string, "True")) {
+   //    printf("process with rank: %d was added dynamically----------------------------------------------\n", myid);
+   //    braid_Update_Dyn_Procs(&iteration, comm_world);
 
-      current_ts = globaltstart + (interval_len * iteration);
-   } else {
-      printf("id: %d was not added dynamically!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n", myid);
-   }
+   //    current_ts = globaltstart + (interval_len * iteration);
+   // } else {
+   //    printf("process with rank: %d was not added dynamically++++++++++++++++++++++++++++++++++++++++++++   \n", myid);
+   // }
+   // printf("dmr boolean: %s\n", boolean_string);
 
    //MPI_Info_free(&info);
+
+   braid_Update_Dyn_Procs(&iteration, comm_world);
+   current_ts = globaltstart + (interval_len * iteration);
+   printf("iteration got set\n");
 
 
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
@@ -339,18 +345,13 @@ braid_Drive_Dyn(braid_Core  core)
 
       braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
 
-      braid_Int err = MPI_Barrier(comm_world);
-      if (err != MPI_SUCCESS) {
-         printf("error in barrier++++++++++++++++++++++++++++++++++++++++\n");
-      }
-      printf("barrier\n");
+      MPI_Barrier(comm_world);
 
       //get solution Vector of previous run, store in transfer_vector and set in braid_Drive_Dyn_Iterate
 
       //get last vector of the process which is responsible for it, which is the process with the highest id
       braid_Int size;
       MPI_Comm_size(comm_world, &size);
-      MPI_Status stat;
 
       // allocating parameters for transfering solution vector
       // getting size of solution vector
@@ -402,21 +403,21 @@ braid_Drive_Dyn(braid_Core  core)
 
       
 
-      // looking for new processes
+      // changing amount of processes
 
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
-      // MPI_Info info;
-      // MPI_Info_create(&info);
-      sprintf(str, "%d", 0);
-      MPI_Info_set(info, "mpi_num_procs_sub", str);
+      MPI_Info info1;
+      MPI_Info_create(&info1);
       sprintf(str, "%d", 1);
-      MPI_Info_set(info, "mpi_num_procs_add", str);
+      MPI_Info_set(info1, "mpi_num_procs_sub", str);
+      sprintf(str, "%d", 0);
+      MPI_Info_set(info1, "mpi_num_procs_add", str);
 
-      //DMR_Set_parameters(info);
+      DMR_Set_parameters(info1);
 
       DMR_RECONFIGURATION();
 
-      // MPI_Info_free(&info);
+      //MPI_Info_free(&info1);
 
       comm_world = DMR_INTERCOMM;
       myid = DMR_comm_rank;
