@@ -358,16 +358,6 @@ braid_Drive_Dyn(braid_Core  core)
 
       if (finalize_flag == 1) {
          return _braid_error_flag;
-      } else {
-
-      // free the grids of this iteration, which are not used anymore as new ones will be constructed
-      braid_Int nlevels = _braid_CoreElt(core, nlevels);
-      _braid_Grid **grids = _braid_CoreElt(core, grids);
-
-      for (int level = 0; level < nlevels; level++)
-      {
-         _braid_GridDestroy(core, grids[level]);
-      }
       }
 
       //MPI_Info_free(&info);
