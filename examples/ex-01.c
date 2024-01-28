@@ -192,8 +192,6 @@ my_Access(braid_App          app,
         fprintf(file, "%.14e\n", (u->value));
         fflush(file);
         fclose(file);
-
-        printf("value of accessed vector u: %f\n", u->value);
     }
 
     return 0;
@@ -261,18 +259,9 @@ int main (int argc, char *argv[])
     tstart = 0.0;
     tstop  = tstart + ntime/2.;
 
-    /* Initialize MPI */
-    //old
-    // MPI_Init(&argc, &argv);
-    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    
-    
-
     /* set up app structure */
     app = (my_App *) malloc(sizeof(my_App));
-    //newDyn
-    // wird erstmal nicht benutzt
-    //(app->rank) = rank;
+    // only used for my_access
     (app->rank)   = 0;
 
     //newDyn look for new parameter in command
@@ -290,11 +279,6 @@ int main (int argc, char *argv[])
     braid_Init_Dyn("mpi://WORLD", "mpi://WORLD", tstart, tstop, ntime, interval_len, app,
                my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, my_GetValue,
                my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
-    
-    //old
-    // braid_Init(MPI_COMM_WORLD, MPI_COMM_WORLD, tstart, tstop, ntime, app,
-    //          my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, 
-    //          my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
 
     /* Set some typical Braid parameters */
     braid_SetPrintLevel( core, 2);
@@ -304,17 +288,9 @@ int main (int argc, char *argv[])
 
     //newDyn
     braid_Drive_Dyn(core);
-    
-    //old
-    /* Run simulation, and then clean up */
-    //braid_Drive(core);
 
     braid_Destroy_Dyn(core);
     free(app);
-
-    //old
-    //MPI_Finalize();
-    printf("print\n");
 
     for (int i = 0; i < argc; ++i) {
         printf("argv[%d]: %s\n", i, argv[i]);

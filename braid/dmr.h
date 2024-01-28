@@ -100,7 +100,7 @@ extern MPI_Request psetop_req;
         strcpy(final_pset, main_pset);                                                                                             \
     }
 
-#define DMR_RECONFIGURATION(finalize_flag)                                                                                                                            \
+#define DMR_RECONFIGURATION(finalize_flag)                                                                                                               \
     {                                                                                                                                                    \
             noutput = 0;                                                                                                                                 \
             if (primary_proc && psetop_req == MPI_REQUEST_NULL)                                                                                          \
@@ -108,8 +108,8 @@ extern MPI_Request psetop_req;
                 input_psets = (char **)malloc(1 * sizeof(char *));                                                                                       \
                 input_psets[0] = strdup(main_pset);                                                                                                      \
                 op_req = MPI_PSETOP_REPLACE;                                                                                                             \
-                MPI_Session_dyn_v2a_psetop_nb(DMR_session, &op_req, input_psets, 1, &output_psets, &noutput, info, &psetop_req);  
-                MPI_Info_free(&info;)
+                MPI_Session_dyn_v2a_psetop_nb(DMR_session, &op_req, input_psets, 1, &output_psets, &noutput, info, &psetop_req);                         \
+                MPI_Info_free(&info);                                                                                                                    \
             }                                                                                                                                            \
             /* Query if there is a resource change */                                                                                                    \
             noutput2 = 0;                                                                                                                                \
@@ -164,7 +164,7 @@ extern MPI_Request psetop_req;
                 if (0 == strcmp(boolean_string, "False"))                                                                                                \
                 {                                                                                                                                        \
                     /* Leaving Processes */                                                                                                              \
-                    finalize_flag = 1;                                                                                                                               \
+                    finalize_flag = 1;                                                                                                                   \
                 }                                                                                                                                        \
             }                                                                                                                                            \
     }

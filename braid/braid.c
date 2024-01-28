@@ -337,20 +337,7 @@ braid_Drive_Dyn(braid_Core  core)
          }
       }
 
-
       free(buffer);
-
-      // TODO here free the used grid
-      // braid_Int nlevels = _braid_CoreElt(core, nlevels);
-      // _braid_Grid **grids = _braid_CoreElt(core, grids);
-
-      // for (int level = 0; level < nlevels; level++)
-      // {
-      //    _braid_GridDestroy(core, grids[level]);
-      // }
-
-      // _braid_TFree(grids);
-
       
 
       // changing amount of processes
@@ -358,9 +345,9 @@ braid_Drive_Dyn(braid_Core  core)
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
       //MPI_Info info1;
       MPI_Info_create(&info);
-      sprintf(str, "%d", 1);
-      MPI_Info_set(info, "mpi_num_procs_sub", str);
       sprintf(str, "%d", 0);
+      MPI_Info_set(info, "mpi_num_procs_sub", str);
+      sprintf(str, "%d", 1);
       MPI_Info_set(info, "mpi_num_procs_add", str);
 
       DMR_Set_parameters(info);
@@ -371,6 +358,16 @@ braid_Drive_Dyn(braid_Core  core)
 
       if (finalize_flag == 1) {
          return _braid_error_flag;
+      } else {
+
+      // free the grids of this iteration, which are not used anymore as new ones will be constructed
+      braid_Int nlevels = _braid_CoreElt(core, nlevels);
+      _braid_Grid **grids = _braid_CoreElt(core, grids);
+
+      for (int level = 0; level < nlevels; level++)
+      {
+         _braid_GridDestroy(core, grids[level]);
+      }
       }
 
       //MPI_Info_free(&info);
@@ -654,9 +651,6 @@ braid_Destroy_Dyn(braid_Core core) {
 
       _braid_TFree(grids);
 
-      //newDyn
-      DMR_FINALIZE0();
-
       _braid_TFree(core);
 
       if (timer_file_stem != NULL)
@@ -671,7 +665,10 @@ braid_Destroy_Dyn(braid_Core core) {
       fclose(_braid_printfile);
    }
 
-    return _braid_error_flag;
+   //newDyn
+   DMR_FINALIZE0();
+
+   return _braid_error_flag;
 }
 
 /*--------------------------------------------------------------------------
