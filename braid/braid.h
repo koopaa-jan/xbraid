@@ -572,25 +572,23 @@ braid_Init(MPI_Comm               comm_world,  /**< Global communicator for spac
  * braid_Core structure. 
  **/
 braid_Int
-braid_Init_Dyn(const char comm_world [],  /**< Global pset for space and time */
-           const char comm [],        /**< pset for temporal dimension*/
-           braid_Real             tstart,      /**< start time */
-           braid_Real             tstop,       /**< End time*/
-           braid_Int              ntime,       /**< Initial number of temporal grid values*/
-           braid_Real             interval_len,
-           braid_App              app,         /**< User-defined _braid_App structure */
-           braid_PtFcnStep        step,        /**< User time stepping routine to advance a braid_Vector forward one step */
-           braid_PtFcnInit        init,        /**< Initialize a braid_Vector on the finest temporal grid*/
-           braid_PtFcnClone       clone,       /**< Clone a braid_Vector*/
-           braid_PtFcnFree        free,        /**< Free a braid_Vector*/
-           braid_PtFcnSum         sum,         /**< Compute vector sum of two braid_Vectors*/
-           braid_PtFcnSpatialNorm spatialnorm, /**< Compute norm of a braid_Vector, this is a norm only over space */
-           braid_PtFcnGetValue    getValue,
-           braid_PtFcnAccess      access,      /**< Allows access to XBraid and current braid_Vector */
-           braid_PtFcnBufSize     bufsize,     /**< Computes size for MPI buffer for one braid_Vector */
-           braid_PtFcnBufPack     bufpack,     /**< Packs MPI buffer to contain one braid_Vector*/
-           braid_PtFcnBufUnpack   bufunpack,   /**< Unpacks MPI buffer into a braid_Vector */
-           braid_Core            *core_ptr     /**< Pointer to braid_Core (_braid_Core) struct*/   
+braid_Init_Dyn(braid_Real             tstart,      /**< start time */
+               braid_Real             tstop,       /**< End time*/
+               braid_Int              ntime,       /**< Initial number of temporal grid values*/
+               braid_Real             interval_len,
+               braid_App              app,         /**< User-defined _braid_App structure */
+               braid_PtFcnStep        step,        /**< User time stepping routine to advance a braid_Vector forward one step */
+               braid_PtFcnInit        init,        /**< Initialize a braid_Vector on the finest temporal grid*/
+               braid_PtFcnClone       clone,       /**< Clone a braid_Vector*/
+               braid_PtFcnFree        free,        /**< Free a braid_Vector*/
+               braid_PtFcnSum         sum,         /**< Compute vector sum of two braid_Vectors*/
+               braid_PtFcnSpatialNorm spatialnorm, /**< Compute norm of a braid_Vector, this is a norm only over space */
+               braid_PtFcnGetValue    getValue,
+               braid_PtFcnAccess      access,      /**< Allows access to XBraid and current braid_Vector */
+               braid_PtFcnBufSize     bufsize,     /**< Computes size for MPI buffer for one braid_Vector */
+               braid_PtFcnBufPack     bufpack,     /**< Packs MPI buffer to contain one braid_Vector*/
+               braid_PtFcnBufUnpack   bufunpack,   /**< Unpacks MPI buffer into a braid_Vector */
+               braid_Core            *core_ptr     /**< Pointer to braid_Core (_braid_Core) struct*/   
            );
 
 braid_Int

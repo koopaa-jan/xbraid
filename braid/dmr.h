@@ -214,9 +214,11 @@ extern MPI_Request psetop_req;
 
 #define DMR_FINALIZE0()                                                                                                        \
     {                                                                                                                          \
+        /* printf("test start pid: %d\n", getpid()); */                                                                             \
         /* We need to cancel our last pset operation. If it was already executed we need to tell any new procs to terminate */ \
         if (primary_proc)                                                                                                      \
         {                                                                                                                      \
+            /* printf("test if primary pid: %d\n", getpid());      */                                                               \
             op_req = MPI_PSETOP_CANCEL;                                                                                        \
             input_psets = (char **)malloc(1 * sizeof(char *));                                                                 \
             input_psets[0] = strdup(main_pset);                                                                                \
@@ -245,7 +247,10 @@ extern MPI_Request psetop_req;
         }                                                                                                                      \
         input_psets = (char **)malloc(1 * sizeof(char *));                                                                     \
         input_psets[0] = strdup(final_pset);                                                                                   \
+        /*printf("test pid: %d\n", getpid());    */                                                                                \
+        fflush(NULL);                                                                                                          \
         MPI_Session_pset_barrier(DMR_session, input_psets, 1, NULL);                                                           \
+        /*printf("test2 pid: %d\n", getpid());    */                                                                               \
         free_string_array(input_psets, 1);                                                                                     \
         if (MPI_COMM_NULL != DMR_INTERCOMM)                                                                                    \
         {                                                                                                                      \

@@ -141,15 +141,7 @@ braid_Drive_Dyn_Iterate(braid_Core  core, braid_Vector transfer_vector)
 
       //setting solution vector for next iteration
       if (transfer_vector != NULL && myid == 0) {
-         printf("before setting sol vector:\n");
-         _braid_CoreFcn(core, getValue)(transfer_vector);
-
-         _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);         
-
-         _braid_UGetVector_Dyn(core, 0, 0, &transfer_vector);
-         _braid_CoreFcn(core, getValue)(transfer_vector);
-
-         printf("after updating sol vector\n");
+         _braid_USetVector_Dyn(core, 0, 0, transfer_vector, 0);
       }
 
       /* Let the users sync after initialization */
@@ -302,6 +294,11 @@ braid_Drive_Dyn(braid_Core  core)
       //get last vector of the process which is responsible for it, which is the process with the highest id
       MPI_Comm_size(comm_world, &size);
 
+
+      // starting time measurement for duration of the solution vector distribution
+      braid_Real gtime_sol_vec;
+      braid_Real ltime_sol_vec = _braid_MPI_Wtime(core, 1);
+
       // allocating parameters for transfering solution vector
       // and getting size of solution vector
       braid_BufferStatus bstatus = (braid_BufferStatus)core;
@@ -312,9 +309,9 @@ braid_Drive_Dyn(braid_Core  core)
 
       if (myid == size - 1) {
          //last processor gets solution vector
-         printf("getting UGetLast of last processor\n");
+         // printf("getting UGetLast of last processor\n");
          _braid_UGetLast(core, &transfer_vector);
-         _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+         // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
 
          // only send when there are more than one processes
          if (myid != 0) {
@@ -332,14 +329,25 @@ braid_Drive_Dyn(braid_Core  core)
             // deserializing data of solution vector
             _braid_CoreFcn(core, bufunpack)(app, buffer, &transfer_vector->userVector, bstatus);
 
-            printf("after receiving\n");
-            _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+            // printf("after receiving\n");
+            // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
          }
       }
 
       free(buffer);
+
+      // ending time measure for distribution of solution vector
+      ltime_sol_vec = _braid_MPI_Wtime(core, 1) - ltime_sol_vec;
+      MPI_Allreduce(&ltime_sol_vec, &gtime_sol_vec, 1, braid_MPI_REAL, MPI_MAX, comm_world);
+
+      if (myid == 0) {
+         printf("time for distribution of solution vector was: %f with %d processes\n", gtime_sol_vec, size);
+      }
       
 
+      // starting time measurement for duration of processes change and update
+      braid_Real ltime_procs = _braid_MPI_Wtime(core, 1);
+      
       // changing amount of processes
 
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
@@ -373,6 +381,13 @@ braid_Drive_Dyn(braid_Core  core)
       _braid_CoreElt(core, comm)            = comm_world;
       _braid_CoreElt(core, myid_world)      = myid;
       _braid_CoreElt(core, myid)            = myid;
+
+
+      // ending time measure for duration of processes change and update
+      ltime_procs = _braid_MPI_Wtime(core, 1) - ltime_procs;
+      
+      printf("time for duration of processes change and update was: %f for the process with id: %d\n", ltime_procs, myid);
+      
 
 
       MPI_Comm_size(comm_world, &size);
@@ -665,8 +680,7 @@ braid_Destroy_Dyn(braid_Core core) {
  *--------------------------------------------------------------------------*/
 
 braid_Int
-braid_Init_Dyn(const char comm_world_pset [],
-           const char comm_pset [],
+braid_Init_Dyn(
            braid_Real             tstart,
            braid_Real             tstop,
            braid_Int              ntime,

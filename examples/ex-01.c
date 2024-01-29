@@ -248,6 +248,49 @@ my_BufUnpack(braid_App          app,
 
 int main (int argc, char *argv[])
 {
+    // old main:
+    // braid_Core    core;
+    // my_App       *app;
+    // double        tstart, tstop;
+    // int           ntime, rank;
+
+    // /* Define time domain: ntime intervals */
+    // ntime  = 10;
+    // tstart = 0.0;
+    // tstop  = tstart + ntime/2.;
+    
+    // /* Initialize MPI */
+    // MPI_Init(&argc, &argv);
+    // MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    
+    // /* set up app structure */
+    // app = (my_App *) malloc(sizeof(my_App));
+    // (app->rank)   = rank;
+    
+    // /* initialize XBraid and set options */
+    // braid_Init(MPI_COMM_WORLD, MPI_COMM_WORLD, tstart, tstop, ntime, app,
+    //             my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, 
+    //             my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
+    
+    // /* Set some typical Braid parameters */
+    // braid_SetPrintLevel( core, 2);
+    // braid_SetMaxLevels(core, 2);
+    // braid_SetAbsTol(core, 1.0e-06);
+    // braid_SetCFactor(core, -1, 2);
+    
+    // /* Run simulation, and then clean up */
+    // braid_Drive(core);
+
+    // braid_Destroy(core);
+    // free(app);
+    // MPI_Finalize();
+
+    // return (0);
+
+
+
+// new main:
+   
     braid_Core    core;
     my_App       *app;
     double        tstart, tstop;
@@ -276,7 +319,7 @@ int main (int argc, char *argv[])
     }
 
     //newDyn
-    braid_Init_Dyn("mpi://WORLD", "mpi://WORLD", tstart, tstop, ntime, interval_len, app,
+    braid_Init_Dyn(tstart, tstop, ntime, interval_len, app,
                my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, my_GetValue,
                my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
 
