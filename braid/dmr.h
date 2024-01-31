@@ -237,11 +237,11 @@ extern MPI_Request psetop_req;
                         MPI_Info_set(info, "inter_pset", "dmr://finalize");                                                    \
                         MPI_Session_set_pset_data(DMR_session, q_output_psets[1], info);                                       \
                         MPI_Info_free(&info);                                                                                  \
+                        MPI_Session_dyn_finalize_psetop(DMR_session, main_pset);                                                   \
+                        MPI_Session_get_pset_data(DMR_session, delta_pset, q_output_psets[1], (char **)&keys[4], 1, true, &info);  \
+                        free_string_array(q_output_psets, noutput);                                                                \
+                        MPI_Info_free(&info);                                                                                      \
                     }                                                                                                          \
-                    MPI_Session_dyn_finalize_psetop(DMR_session, main_pset);                                                   \
-                    MPI_Session_get_pset_data(DMR_session, delta_pset, q_output_psets[1], (char **)&keys[4], 1, true, &info);  \
-                    free_string_array(q_output_psets, noutput);                                                                \
-                    MPI_Info_free(&info);                                                                                      \
                 }                                                                                                              \
             }                                                                                                                  \
         }                                                                                                                      \

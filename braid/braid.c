@@ -353,9 +353,9 @@ braid_Drive_Dyn(braid_Core  core)
       printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
       //MPI_Info info1;
       MPI_Info_create(&info);
-      sprintf(str, "%d", 0);
-      MPI_Info_set(info, "mpi_num_procs_sub", str);
       sprintf(str, "%d", 1);
+      MPI_Info_set(info, "mpi_num_procs_sub", str);
+      sprintf(str, "%d", 0);
       MPI_Info_set(info, "mpi_num_procs_add", str);
 
       DMR_Set_parameters(info);
