@@ -251,7 +251,7 @@ braid_Drive_Dyn(braid_Core  core)
       }
    }
 
-   printf("-------------------------------------------------interval_len: %f trange_per_ts: %f\n", interval_len, trange_per_ts);
+   // printf("-------------------------------------------------interval_len: %f trange_per_ts: %f\n", interval_len, trange_per_ts);
 
    //helps to get the solution vector and store for next iteration
    braid_BaseVector transfer_vector = _braid_TAlloc(_braid_BaseVector, 1);
@@ -275,15 +275,16 @@ braid_Drive_Dyn(braid_Core  core)
 
    // repeat as long as the next iteration(which has the length of interval_len) wouldnt exceed tstop
    for (; current_ts < globaltstop - interval_len; current_ts += interval_len) {
+      sleep(1);
       ++iteration;
       //set parameters
       _braid_CoreElt(core, tstart) = current_ts;
       _braid_CoreElt(core, tstop) = current_ts + interval_len;
       _braid_CoreElt(core, ntime) = interval_len / trange_per_ts;
 
-      printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
-       current_ts, current_ts + interval_len, interval_len / trange_per_ts,
-        (interval_len / trange_per_ts));
+      // printf("1 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f\n",
+      //  current_ts, current_ts + interval_len, interval_len / trange_per_ts,
+      //   (interval_len / trange_per_ts));
 
 
       braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
@@ -349,13 +350,15 @@ braid_Drive_Dyn(braid_Core  core)
       braid_Real ltime_procs = _braid_MPI_Wtime(core, 1);
       
       // changing amount of processes
+      braid_Int num_procs_sub = 1;
+      braid_Int num_procs_add = 0;
 
-      printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
+      //printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
       //MPI_Info info1;
       MPI_Info_create(&info);
-      sprintf(str, "%d", 1);
+      sprintf(str, "%d", num_procs_sub);
       MPI_Info_set(info, "mpi_num_procs_sub", str);
-      sprintf(str, "%d", 0);
+      sprintf(str, "%d", num_procs_add);
       MPI_Info_set(info, "mpi_num_procs_add", str);
 
       DMR_Set_parameters(info);
@@ -390,8 +393,8 @@ braid_Drive_Dyn(braid_Core  core)
       
 
 
-      MPI_Comm_size(comm_world, &size);
-      printf("-+-+-+--+--+-+-++--+---++- my new id is: %d new size after rearrange is: %d ++-+-+-+-+--+-+-+-+\n", myid, size);
+      //MPI_Comm_size(comm_world, &size);
+      //printf("-+-+-+--+--+-+-++--+---++- my new id is: %d new size after rearrange is: %d ++-+-+-+-+--+-+-+-+\n", myid, size);
    }
    if (current_ts < globaltstop) {
       // compute the remainding time until tstop
@@ -404,9 +407,9 @@ braid_Drive_Dyn(braid_Core  core)
       _braid_CoreElt(core, gupper) = ((globaltstop - current_ts) / trange_per_ts);
 
 
-      printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f myid: %d\n",
-       current_ts, globaltstop, (globaltstop - current_ts) / trange_per_ts,
-        ((globaltstop - current_ts) / trange_per_ts), myid);
+      // printf("2 ++++++++++++++ tstart: %f tstop: %f ntime: %f gupper: %f myid: %d\n",
+      //  current_ts, globaltstop, (globaltstop - current_ts) / trange_per_ts,
+      //   ((globaltstop - current_ts) / trange_per_ts), myid);
 
       braid_Drive_Dyn_Iterate(core, transfer_vector->userVector);
 

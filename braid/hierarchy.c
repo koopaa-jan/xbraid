@@ -280,8 +280,8 @@ _braid_InitHierarchy(braid_Core    core,
          _braid_GetProc(core, level, ilower-1, &left_proc);
          _braid_GetProc(core, level, iupper+1, &right_proc);
 
-         printf("Init Hierarchy: start level: %d nlevels: %d ilower: %d iupper: %d left: %d right: %d\n", 
-         level, nlevels, ilower, iupper, left_proc, right_proc);
+         // printf("Init Hierarchy: start level: %d nlevels: %d ilower: %d iupper: %d left: %d right: %d\n", 
+         // level, nlevels, ilower, iupper, left_proc, right_proc);
          
          /* Post receive to set ta[-1] on each processor*/
          if (left_proc > -1)
