@@ -225,6 +225,7 @@ braid_Drive_Dyn(braid_Core  core)
    braid_Int            ntime           = _braid_CoreElt(core, ntime);
    //newDyn
    braid_Real           interval_len    = _braid_CoreElt(core, interval_len);
+   braid_Int            max_procs       = _braid_CoreElt(core, max_procs);
 
    braid_App            app             = _braid_CoreElt(core, app);
 
@@ -308,11 +309,28 @@ braid_Drive_Dyn(braid_Core  core)
 
       char *buffer = (char *)malloc(sol_vec_size);
 
-      if (myid == size - 1) {
-         //last processor gets solution vector
-         // printf("getting UGetLast of last processor\n");
-         _braid_UGetLast(core, &transfer_vector);
-         // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+
+      // adjusting sol_vec distribution so not the last one but the last one with a valid sol_vec is distributing
+      // if number of procs available is higher than number of ts to be computed, then the vector with the sol vector is
+      // not the last process
+      braid_Int num_procs_needed = (interval_len / trange_per_ts) + 1;
+      braid_Int sol_vec_id = size - 1;
+      if (num_procs_needed < size) {
+         sol_vec_id = (interval_len / trange_per_ts);
+      }
+      // printf("sol_vec_id: %d for %d processes and %d processes needed\n", sol_vec_id, size, num_procs_needed);
+
+      if (myid == sol_vec_id) {
+         if (myid == size - 1) {
+            //last processor gets solution vector
+            // printf("getting UGetLast of last processor\n");
+            _braid_UGetLast(core, &transfer_vector);
+            // _braid_CoreFcn(core, getValue)(transfer_vector->userVector);
+         } else {
+            // get sol vector from processes with the last time step that is not the last process, so UGetLast cant be used
+            _braid_Grid **grids = _braid_CoreElt(core, grids);
+            transfer_vector->userVector = _braid_GridElt(grids[0], ulast)->userVector;
+         }
 
          // only send when there are more than one processes
          if (myid != 0) {
@@ -324,9 +342,9 @@ braid_Drive_Dyn(braid_Core  core)
       
       if (size > 1) {
          // broadcasting solution vector, so every process has a copy of it
-         MPI_Bcast(buffer, sol_vec_size, MPI_BYTE, size - 1, comm_world);
+         MPI_Bcast(buffer, sol_vec_size, MPI_BYTE, sol_vec_id, comm_world);
          
-         if (myid != size - 1) {
+         if (myid != sol_vec_id) {
             // deserializing data of solution vector
             _braid_CoreFcn(core, bufunpack)(app, buffer, &transfer_vector->userVector, bstatus);
 
@@ -350,41 +368,46 @@ braid_Drive_Dyn(braid_Core  core)
       braid_Real ltime_procs = _braid_MPI_Wtime(core, 1);
       
       // changing amount of processes
-      braid_Int num_procs_sub = 1;
-      braid_Int num_procs_add = 0;
+      braid_Int num_procs_sub = 0;
+      braid_Int num_procs_add = 1;
 
-      //printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
-      //MPI_Info info1;
-      MPI_Info_create(&info);
-      sprintf(str, "%d", num_procs_sub);
-      MPI_Info_set(info, "mpi_num_procs_sub", str);
-      sprintf(str, "%d", num_procs_add);
-      MPI_Info_set(info, "mpi_num_procs_add", str);
+      // if adding or removing isnt possible, continue without adjusting
+      if (((num_procs_add == 0) && (size - num_procs_sub > 0)) || ((size + num_procs_add <= max_procs) && (num_procs_sub == 0))) {
 
-      DMR_Set_parameters(info);
+         //printf("-+-+-+--+--+-+-++--+---++- myid is: %d and old size: %d +-+-+-+-+-+-+-+-+\n", myid, size);
+         //MPI_Info info1;
+         MPI_Info_create(&info);
+         sprintf(str, "%d", num_procs_sub);
+         MPI_Info_set(info, "mpi_num_procs_sub", str);
+         sprintf(str, "%d", num_procs_add);
+         MPI_Info_set(info, "mpi_num_procs_add", str);
 
-      braid_Int finalize_flag = 0;
+         DMR_Set_parameters(info);
 
-      DMR_RECONFIGURATION(finalize_flag);
+         braid_Int finalize_flag = 0;
 
-      if (finalize_flag == 1) {
-         return _braid_error_flag;
+         DMR_RECONFIGURATION(finalize_flag);
+
+         if (finalize_flag == 1) {
+            return _braid_error_flag;
+         }
+
+         //MPI_Info_free(&info);
+
+         //update new processes
+         braid_Update_Dyn_Procs(&iteration, DMR_INTERCOMM);
+
+         // updating parameters
+         comm_world = DMR_INTERCOMM;
+         myid = DMR_comm_rank;
+
+         _braid_CoreElt(core, comm_world)      = comm_world;
+         _braid_CoreElt(core, comm)            = comm_world;
+         _braid_CoreElt(core, myid_world)      = myid;
+         _braid_CoreElt(core, myid)            = myid;
+      } else {
+         printf("reconfiguration was skipped as removing or adding processes wasnt possible!\n");
       }
-
-      //MPI_Info_free(&info);
-
-      //update new processes
-      braid_Update_Dyn_Procs(&iteration, DMR_INTERCOMM);
-
-      // updating parameters
-      comm_world = DMR_INTERCOMM;
-      myid = DMR_comm_rank;
-
-      _braid_CoreElt(core, comm_world)      = comm_world;
-      _braid_CoreElt(core, comm)            = comm_world;
-      _braid_CoreElt(core, myid_world)      = myid;
-      _braid_CoreElt(core, myid)            = myid;
-
 
       // ending time measure for duration of processes change and update
       ltime_procs = _braid_MPI_Wtime(core, 1) - ltime_procs;
@@ -689,6 +712,7 @@ braid_Init_Dyn(
            braid_Int              ntime,
            //newDyn
            braid_Real             interval_len,
+           braid_Int              max_procs,
            braid_App              app,
            braid_PtFcnStep        step,
            braid_PtFcnInit        init,
@@ -765,6 +789,7 @@ braid_Init_Dyn(
    //newDyn
    _braid_CoreElt(core, interval_len)    = interval_len;
    _braid_CoreElt(core, getValue)        = getValue;
+   _braid_CoreElt(core, max_procs)       = max_procs;
 
    _braid_CoreElt(core, comm_world)      = comm_world;
    _braid_CoreElt(core, comm)            = comm;

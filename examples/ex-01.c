@@ -310,8 +310,14 @@ int main (int argc, char *argv[])
     //newDyn look for new parameter in command
     double interval_len = 0.0;
     char *endptr;
+    // and define how many procs is the maximum
+    int max_procs = 0;
     if (argc > 1) {
         interval_len = strtod(argv[1], &endptr);
+
+        if (argc > 2) {
+            max_procs = atoi(argv[2]);
+        }
     }
     if (argc <= 1 || interval_len <= tstart || interval_len > tstop) {
         // make sure interval_len is valid
@@ -319,7 +325,7 @@ int main (int argc, char *argv[])
     }
 
     //newDyn
-    braid_Init_Dyn(tstart, tstop, ntime, interval_len, app,
+    braid_Init_Dyn(tstart, tstop, ntime, interval_len, max_procs, app,
                my_Step, my_Init, my_Clone, my_Free, my_Sum, my_SpatialNorm, my_GetValue,
                my_Access, my_BufSize, my_BufPack, my_BufUnpack, &core);
 

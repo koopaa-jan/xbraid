@@ -576,6 +576,7 @@ braid_Init_Dyn(braid_Real             tstart,      /**< start time */
                braid_Real             tstop,       /**< End time*/
                braid_Int              ntime,       /**< Initial number of temporal grid values*/
                braid_Real             interval_len,
+               braid_Int              max_procs,
                braid_App              app,         /**< User-defined _braid_App structure */
                braid_PtFcnStep        step,        /**< User time stepping routine to advance a braid_Vector forward one step */
                braid_PtFcnInit        init,        /**< Initialize a braid_Vector on the finest temporal grid*/

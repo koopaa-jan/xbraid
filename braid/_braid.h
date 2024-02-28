@@ -259,6 +259,7 @@ typedef struct _braid_Core_struct
    //newDyn
    MPI_Comm               comm_world;
    braid_Real             interval_len;
+   braid_Int              max_procs;
    braid_PtFcnGetValue    getValue;
    MPI_Comm               comm;             /**< communicator for the time dimension */
    braid_Int              myid_world;       /**< my rank in the world communicator */
